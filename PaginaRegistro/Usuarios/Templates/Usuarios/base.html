@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mi Aplicación{% endblock %}</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --focus-ring: rgba(79, 70, 229, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        /* --- Barra de Navegación --- */
+        .navbar {
+            background-color: var(--surface);
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .nav-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--primary);
+        }
+
+        /* ESTILO PARA LA PESTAÑA ACTUAL */
+        .nav-link.active {
+            color: var(--primary); /* Se queda del color morado resaltado */
+            font-weight: 700;      /* Opcional: lo hace un poco más grueso para destacar */
+            pointer-events: none;  /* Desactiva por completo los clics */
+            cursor: default;       /* Quita la "manita" del cursor */
+        }
+
+        /* Formulario invisible para no alterar la alineación del menú */
+        .nav-logout-form {
+            margin: 0;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        /* El botón disfrazado de enlace */
+        .nav-btn-logout {
+            background: transparent; /* Quita cualquier fondo o recuadro */
+            border: none;            /* Quita el borde nativo */
+            outline: none;           /* Quita el borde azul al hacer clic */
+            padding: 0;
+            
+            color: var(--text-muted);
+            font-family: inherit;    /* Usa la misma fuente que el resto del menú */
+            font-weight: 500;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        /* Efecto hover en rojo */
+        .nav-btn-logout:hover {
+            color: var(--danger); /* Usa la variable roja que definimos al principio */
+        }
+
+        /* --- Contenedor Principal --- */
+        .container {
+            max-width: 1000px;
+            margin: 2.5rem auto;
+            padding: 0 1.5rem;
+        }
+        
+        /* Aquí puedes dejar estilos globales. Los estilos específicos de cada vista 
+           los puedes poner en bloques o en un archivo CSS separado. */
+           
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+
+    <!-- Esta barra aparecerá en todas las páginas que hereden de base.html -->
+    <nav class="navbar">
+        <div class="nav-brand">Panel Administrativo</div>
+        
+        <div class="nav-menu">
+            
+            <!-- Validamos si la URL actual se llama 'inicio' -->
+            <a href="{% url 'inicio' %}" 
+               class="nav-link {% if request.resolver_match.url_name == 'inicio' %}active{% endif %}">
+               Inicio
+            </a>
+            
+            <!-- Validamos si la URL actual se llama 'crear_usuario' -->
+            <a href="{% url 'register_Normal' %}" 
+               class="nav-link {% if request.resolver_match.url_name == 'register_Normal' %}active{% endif %}">
+               Registrar usuario
+            </a>
+            
+            <!-- Formulario de Logout (este no necesita validación porque no es una pestaña) -->
+            <form action="{% url 'logout' %}" method="post" class="nav-logout-form">
+                {% csrf_token %}
+                <button type="submit" class="nav-btn-logout">Cerrar Sesión</button>
+            </form>
+            
+        </div>
+    </nav>
+
+    <!-- Contenido Dinámico -->
+    <main class="container">
+        {% block content %}
+        <!-- Aquí se inyectará el contenido de las plantillas hijas -->
+        {% endblock %}
+    </main>
+
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificación Biométrica</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            
+            /* Colores de estado (Alertas) */
+            --info-bg: #eff6ff;
+            --info-text: #1d4ed8;
+            --info-border: #bfdbfe;
+            
+            --success-bg: #f0fdf4;
+            --success-text: #15803d;
+            --success-border: #bbf7d0;
+            
+            --error-bg: #fef2f2;
+            --error-text: #b91c1c;
+            --error-border: #fecaca;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+
+        .auth-card {
+            background-color: var(--surface);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 420px;
+            text-align: center; /* Centramos el contenido por ser una pantalla de verificación */
+        }
+
+        .auth-header {
+            margin-bottom: 2rem;
+        }
+
+        .auth-header h2 {
+            color: var(--text-main);
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+        }
+
+        .auth-header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .auth-header strong {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        /* Botón de verificación */
+        .btn-verify {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            padding: 0.875rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn-verify:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-verify:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .btn-verify:disabled {
+            background-color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+
+        /* Icono SVG para el botón */
+        .btn-verify svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Cajas de estado */
+        .status-box {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-align: left;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .info {
+            background-color: var(--info-bg);
+            color: var(--info-text);
+            border: 1px solid var(--info-border);
+        }
+
+        .success {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border: 1px solid var(--success-border);
+        }
+
+        .error {
+            background-color: var(--error-bg);
+            color: var(--error-text);
+            border: 1px solid var(--error-border);
+        }
+        .auth-back-link {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .auth-back-link:hover {
+            color: var(--primary-hover);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="auth-card">
+        <a href="{% url 'login' %}" class="auth-back-link">← Regresar</a>
+        <div class="auth-header">
+            <h2>Autenticación Multi-Factor</h2>
+            <p>Hola <strong>{{ usuario.nombre }}</strong>, por favor verifique su identidad.</p>
+        </div>
+
+        {% csrf_token %}
+        
+        <button id="btn-verify" class="btn-verify" onclick="verificarHuella()">
+            <!-- Icono de huella digital SVG -->
+            <svg viewBox="0 0 24 24">
+                <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path>
+                <path d="M12 8v4"></path>
+                <path d="M12 16h.01"></path>
+            </svg>
+            <span id="btn-text">Escanear Huella</span>
+        </button>
+
+        <div id="status-message" class="status-box info" style="display: none;"></div>
+    </div>
+
+    <script>
+        function verificarHuella() {
+            const btn = document.getElementById('btn-verify');
+            const btnText = document.getElementById('btn-text');
+            const statusBox = document.getElementById('status-message');
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            btn.disabled = true;
+            btnText.innerText = "Comparando...";
+            statusBox.style.display = "block";
+            statusBox.className = "status-box info";
+            statusBox.innerText = "Coloque su dedo en el sensor...";
+
+            fetch("{% url 'verificar_huella' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    statusBox.className = "status-box success";
+                    statusBox.innerText = "✅ " + data.message;
+                    
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1000);
+                    
+                } else {
+                    statusBox.className = "status-box error";
+                    statusBox.innerText = "❌ " + data.message;
+                    btn.disabled = false;
+                    btnText.innerText = "Reintentar";
+                }
+            })
+            .catch(error => {
+                statusBox.className = "status-box error";
+                statusBox.innerText = "❌ Error crítico al contactar con el hardware.";
+                btn.disabled = false;
+                btnText.innerText = "Reintentar";
+            });
+        }
+    </script>
+</body>
+</html>

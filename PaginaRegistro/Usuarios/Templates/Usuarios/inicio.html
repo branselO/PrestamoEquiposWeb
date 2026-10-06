@@ -1,0 +1,139 @@
+{% extends 'Usuarios/base.html' %}
+
+{% block title %}Panel de Inicio - Staff{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        background-color: var(--surface);
+        padding: 2.5rem;
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .dashboard-header { margin-bottom: 1.5rem; }
+    .dashboard-header h2 { font-size: 1.75rem; margin-bottom: 0.5rem; color: var(--text-main); }
+    .badge-staff {
+        display: inline-block; background-color: #e0e7ff; color: #3730a3;
+        padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 600;
+    }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+    
+    .actions-section h3 { 
+        font-size: 1.25rem; 
+        margin-bottom: 1.5rem; 
+        color: var(--text-main); 
+    }
+
+    /* --- Grid de Tarjetas (Imágenes) --- */
+    .actions-grid {
+        display: grid;
+        /* auto-fit y minmax hacen que las tarjetas se adapten automáticamente al tamaño de la pantalla */
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.5rem;
+    }
+
+    /* Toda la tarjeta funciona como un enlace */
+    .action-card {
+        display: flex;
+        flex-direction: column;
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        overflow: hidden; /* Evita que las esquinas de la imagen se salgan del borde redondeado */
+        text-decoration: none;
+        color: var(--text-main);
+        transition: all 0.2s ease;
+    }
+
+    /* Efecto al pasar el mouse sobre cualquier parte de la tarjeta */
+    .action-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        border-color: var(--primary);
+    }
+
+    /* Contenedor de la imagen */
+    .action-image {
+        width: 100%;
+        height: 140px;
+        object-fit: cover; /* Asegura que la imagen llene el espacio sin deformarse */
+        background-color: var(--bg);
+        border-bottom: 1px solid var(--border);
+    }
+
+    /* Contenedor del texto debajo de la imagen */
+    .action-info {
+        padding: 1.25rem;
+        text-align: center;
+    }
+
+    .action-info h4 {
+        font-size: 1.05rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--text-main);
+    }
+
+    .action-info p {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-card">
+    <div class="dashboard-header">
+        <h2>Bienvenido, {{ user.nombre }}</h2>
+        <span class="badge-staff">Staff Administrativo</span>
+    </div>
+    
+    <hr>
+    
+    <div class="actions-section">
+        <h3>Acciones rápidas</h3>
+        
+        <div class="actions-grid">
+            
+            <!-- Tarjeta 1: Crear Usuario -->
+            <a href="{% url 'register_Normal' %}" class="action-card">
+
+                <img src="https://placehold.co/400x250/e0e7ff/4f46e5?text=Nuevo+Usuario" alt="Crear Usuario" class="action-image">
+                <div class="action-info">
+                    <h4>Crear nuevo usuario</h4>
+                    <p>Registrar una cuenta normal</p>
+                </div>
+            </a>
+
+            <!-- Tarjeta 2: Administrar Usuarios -->
+            <a href="" class="action-card">
+                <img src="https://placehold.co/400x250/e0e7ff/4f46e5?text=Usuarios" alt="Administrar Usuarios" class="action-image">
+                <div class="action-info">
+                    <h4>Administrar usuarios</h4>
+                    <p>Ver y editar registros</p>
+                </div>
+            </a>
+
+            <!-- Tarjeta 3: Administrar Dispositivos -->
+            <a href="" class="action-card">
+                <img src="https://placehold.co/400x250/e0e7ff/4f46e5?text=Dispositivos" alt="Administrar Dispositivos" class="action-image">
+                <div class="action-info">
+                    <h4>Administrar Dispositivos</h4>
+                    <p>Gestión de inventario</p>
+                </div>
+            </a>
+
+            <!-- Tarjeta 4: Administrar Préstamos -->
+            <a href="" class="action-card">
+                <img src="https://placehold.co/400x250/e0e7ff/4f46e5?text=Prestamos" alt="Administrar Préstamos" class="action-image">
+                <div class="action-info">
+                    <h4>Administrar Préstamos</h4>
+                    <p>Control de asignaciones</p>
+                </div>
+            </a>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

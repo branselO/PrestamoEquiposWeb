@@ -1,0 +1,143 @@
+{% extends 'Usuarios/base.html' %}
+
+{% block title %}Registrar Nuevo Usuario{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Contenedor invisible para limitar el ancho del formulario y que no ocupe toda la pantalla */
+    .form-container {
+        max-width: 500px;
+        margin: 0 auto; 
+        padding: 2rem 0;
+    }
+
+    /* Estilos del enlace de retroceso */
+    .back-link {
+        display: inline-block;
+        margin-bottom: 2rem;
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+
+    .back-link:hover {
+        color: var(--primary-hover);
+        text-decoration: underline;
+    }
+
+    /* Cabecera de la página */
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-header h2 {
+        color: var(--text-main);
+        font-size: 1.75rem;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+
+    .page-header p {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+    }
+
+    /* --- Estilos adaptados para {{ form.as_p }} de Django --- */
+    form p {
+        margin-bottom: 1.25rem;
+    }
+
+    form p label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-main);
+        margin-bottom: 0.5rem;
+    }
+
+    form p input:not([type="checkbox"]) {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        color: var(--text-main);
+        transition: all 0.2s ease;
+        background-color: var(--surface);
+    }
+
+    form p input:not([type="checkbox"]):focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px var(--focus-ring);
+    }
+
+    form p input[type="checkbox"] {
+        width: 1rem;
+        height: 1rem;
+        accent-color: var(--primary);
+        cursor: pointer;
+        vertical-align: middle;
+        margin-right: 0.5rem;
+    }
+
+    .helptext {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 0.3rem;
+        display: block;
+    }
+
+    ul.errorlist {
+        color: #dc2626;
+        background-color: #fee2e2;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        list-style: none;
+        font-size: 0.85rem;
+        margin-bottom: 1.25rem;
+    }
+
+    /* Botón de envío */
+    /* Botón de envío específico del formulario (agregamos .form-container al inicio) */
+    .form-container button[type="submit"] {
+        width: 100%;
+        background-color: var(--primary);
+        color: white;
+        padding: 0.875rem;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+        margin-top: 1rem;
+    }
+
+    .form-container button[type="submit"]:hover {
+        background-color: var(--primary-hover);
+    }
+
+    .form-container button[type="submit"]:active {
+        transform: scale(0.98);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="form-container">
+        
+        <div class="page-header">
+            <h2>Registrar a un cliente normal</h2>
+            <p>Como miembro del Staff, puedes registrar cuentas estándar desde aquí.</p>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Crear cuenta normal</button>
+        </form>
+        
+    </div>
+{% endblock %}

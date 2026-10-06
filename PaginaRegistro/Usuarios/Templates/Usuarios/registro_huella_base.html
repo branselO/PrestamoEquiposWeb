@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Registro Biométrico{% endblock %}</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            
+            /* Colores de estado (Alertas) */
+            --info-bg: #eff6ff;
+            --info-text: #1d4ed8;
+            --info-border: #bfdbfe;
+            
+            --success-bg: #f0fdf4;
+            --success-text: #15803d;
+            --success-border: #bbf7d0;
+            
+            --error-bg: #fef2f2;
+            --error-text: #b91c1c;
+            --error-border: #fecaca;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+
+        .auth-card {
+            background-color: var(--surface);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+
+        .auth-header {
+            margin-bottom: 2rem;
+        }
+
+        .auth-header h2 {
+            color: var(--text-main);
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+        }
+
+        .auth-header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        /* Botón de escaneo */
+        .btn-scan {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            padding: 0.875rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn-scan:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-scan:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .btn-scan:disabled {
+            background-color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+
+        /* Icono SVG para el botón */
+        .btn-scan svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Cajas de estado */
+        .status-box {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-align: left;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .info {
+            background-color: var(--info-bg);
+            color: var(--info-text);
+            border: 1px solid var(--info-border);
+        }
+
+        .success {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border: 1px solid var(--success-border);
+        }
+
+        .error {
+            background-color: var(--error-bg);
+            color: var(--error-text);
+            border: 1px solid var(--error-border);
+        }
+        .auth-back-link {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .auth-back-link:hover {
+            color: var(--primary-hover);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="auth-card">
+        <a href="{% block back_url %}{% url 'register' %}{% endblock %}" class="auth-back-link">← Regresar</a>
+        <div class="auth-header">
+            <h2>Registro de Huella</h2>
+            <p>Último paso: Por favor, conecte el sensor y presione el botón cuando esté listo.</p>
+        </div>
+
+        <!-- Token CSRF oculto para que JS lo pueda leer -->
+        {% csrf_token %}
+        
+        <button id="btn-scan" class="btn-scan" onclick="iniciarEscaneo()">
+            <svg viewBox="0 0 24 24">
+                <!-- Ícono simple tipo "plus" sobre un círculo para denotar "añadir" -->
+                <path d="M12 5v14M5 12h14"></path>
+            </svg>
+            <span id="btn-text">Comenzar Escaneo</span>
+        </button>
+
+        <!-- Aquí inyectaremos los mensajes en tiempo real -->
+        <div id="status-message" class="status-box info" style="display: none;"></div>
+    </div>
+
+    <script>
+        let intervaloEstado = null; // Variable para controlar el estado del registro
+
+        function iniciarEscaneo() {
+            const btn = document.getElementById('btn-scan');
+            const btnText = document.getElementById('btn-text');
+            const statusBox = document.getElementById('status-message');
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            // 1. Actualizar UI
+            btn.disabled = true;
+            btnText.innerText = "Escaneando...";
+            statusBox.style.display = "block";
+            statusBox.className = "status-box info";
+            statusBox.innerText = "Conectando con el hardware...";
+
+            // 2. Consulta del estado del sensor cada 500ms
+            intervaloEstado = setInterval(() => {
+                fetch("{% url 'estado_sensor' %}")
+                    .then(response => response.json())
+                    .then(data => {
+                        // Solo actualiza la caja si el mensaje no está vacío
+                        if (data.mensaje) {
+                            statusBox.innerText = "🔄 " + data.mensaje;
+                        }
+                    })
+                    .catch(error => console.error("Error al leer el estado:", error));
+            }, 500);
+
+            // 3. Ejecutar la petición pesada que activa el sensor
+            fetch("{% url 'registrar_huella' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 4. Detener el intervalo que consulta el estado del sensor
+                clearInterval(intervaloEstado);
+
+                if (data.status === 'success') {
+                    statusBox.className = "status-box success";
+                    statusBox.innerText = "✅ " + data.message;
+                    
+                    // Redirigir después de 2 segundos
+                    setTimeout(() => {
+                        window.location.href = "{% block login_url %}{% endblock %}";
+                    }, 2000);
+                    
+                } else {
+                    statusBox.className = "status-box error";
+                    statusBox.innerText = "❌ " + data.message;
+                    btn.disabled = false;
+                    btnText.innerText = "Reintentar Escaneo";
+                }
+            })
+            .catch(error => {
+                // Si algo explota (servidor caído o cable desconectado)
+                clearInterval(intervaloEstado);
+                statusBox.className = "status-box error";
+                statusBox.innerText = "❌ Error crítico de comunicación con el hardware.";
+                btn.disabled = false;
+                btnText.innerText = "Reintentar Escaneo";
+            });
+        }
+    </script>
+</body>
+</html>
