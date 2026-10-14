@@ -1,4 +1,5 @@
 {% extends 'Usuarios/base.html' %}
+{% load static %}
 
 {% block title %}Panel de Inicio - Staff{% endblock %}
 
@@ -10,11 +11,18 @@
         border-radius: 1rem;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
-    .dashboard-header { margin-bottom: 1.5rem; }
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
     .dashboard-header h2 { font-size: 1.75rem; margin-bottom: 0.5rem; color: var(--text-main); }
+    .welcome-info { min-width: 0; }
     .badge-staff {
         display: inline-block; background-color: #e0e7ff; color: #3730a3;
-        padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 600;
+        padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 1.0rem; font-weight: 600;
     }
     hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
     
@@ -79,14 +87,33 @@
         color: var(--text-muted);
         margin: 0;
     }
+    .profile-image {
+        width: 7.5rem;
+        height: 7.5rem;
+        flex: 0 0 auto;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 5px solid var(--border);
+        margin-right: 60px;
+    }
+
+    @media (max-width: 480px) {
+        .dashboard-card { padding: 1.5rem; }
+        .dashboard-header h2 { font-size: 1.35rem; }
+        .profile-image { width: 3.5rem; height: 3.5rem; }
+    }
+
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="dashboard-card">
     <div class="dashboard-header">
-        <h2>Bienvenido, {{ user.nombre }}</h2>
-        <span class="badge-staff">Staff Administrativo</span>
+        <div class="welcome-info">
+            <h2>Bienvenido, {{ user.nombre }} {{ user.apellidos }}</h2>
+            <span class="badge-staff">Staff Administrativo</span>
+        </div>
+        <img src="{% static 'Usuarios/profile.jpg' %}" alt="Imagen de perfil" class="profile-image">
     </div>
     
     <hr>
@@ -96,40 +123,49 @@
         
         <div class="actions-grid">
             
-            <!-- Tarjeta 1: Crear Usuario -->
-            <a href="{% url 'register_Normal' %}" class="action-card">
-
-                <img src="https://placehold.co/400x250/e0e7ff/4f46e5?text=Nuevo+Usuario" alt="Crear Usuario" class="action-image">
-                <div class="action-info">
-                    <h4>Crear nuevo usuario</h4>
-                    <p>Registrar una cuenta normal</p>
-                </div>
-            </a>
-
-            <!-- Tarjeta 2: Administrar Usuarios -->
-            <a href="" class="action-card">
-                <img src="https://placehold.co/400x250/e0e7ff/4f46e5?text=Usuarios" alt="Administrar Usuarios" class="action-image">
+            <!-- Tarjeta 1: Administrar Usuarios -->
+            <a href="{% url 'admin_usuarios' %}" class="action-card">
+                <img src="{% static 'Usuarios/admin_usuarios.jpg' %}" alt="Administrar Usuarios" class="action-image">
                 <div class="action-info">
                     <h4>Administrar usuarios</h4>
                     <p>Ver y editar registros</p>
                 </div>
             </a>
 
-            <!-- Tarjeta 3: Administrar Dispositivos -->
-            <a href="" class="action-card">
-                <img src="https://placehold.co/400x250/e0e7ff/4f46e5?text=Dispositivos" alt="Administrar Dispositivos" class="action-image">
+            <!-- Tarjeta 2: Crear Usuario -->
+            <a href="{% url 'register_Normal' %}" class="action-card">
+
+                <img src="{% static 'Usuarios/usuarios.jpg' %}" alt="Crear Usuario" class="action-image">
                 <div class="action-info">
-                    <h4>Administrar Dispositivos</h4>
+                    <h4>Registrar usuario</h4>
+                    <p>Registrar una cuenta normal</p>
+                </div>
+            </a>
+
+
+            <!-- Tarjeta 3: Administrar Dispositivos -->
+            <a href="{% url 'inventario' %}" class="action-card">
+                <img src="{% static 'Usuarios/dispositivos.png' %}" alt="Administrar Dispositivos" class="action-image">
+                <div class="action-info">
+                    <h4>Administrar dispositivos</h4>
                     <p>Gestión de inventario</p>
                 </div>
             </a>
 
             <!-- Tarjeta 4: Administrar Préstamos -->
-            <a href="" class="action-card">
-                <img src="https://placehold.co/400x250/e0e7ff/4f46e5?text=Prestamos" alt="Administrar Préstamos" class="action-image">
+            <a href="{% url 'prestamos' %}" class="action-card">
+                <img src="{% static 'Usuarios/prestamos.jpg' %}" alt="Administrar Préstamos" class="action-image">
                 <div class="action-info">
-                    <h4>Administrar Préstamos</h4>
+                    <h4>Administrar préstamos</h4>
                     <p>Control de asignaciones</p>
+                </div>
+            </a>
+
+            <a href="" class="action-card">
+                <img src="{% static 'Usuarios/sansiones.jpg' %}" alt="Administrar Sanciones" class="action-image">
+                <div class="action-info">
+                    <h4>Administrar sanciones</h4>
+                    <p>Control de sanciones</p>
                 </div>
             </a>
 

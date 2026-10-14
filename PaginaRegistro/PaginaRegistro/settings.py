@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,7 +38,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'Usuarios'
+    'Usuarios',
+    'Inventario',
+    'Prestamos',
 ]
 
 AUTH_USER_MODEL = 'Usuarios.CustomUser'
@@ -57,7 +60,7 @@ ROOT_URLCONF = 'PaginaRegistro.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [''],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -74,11 +77,23 @@ WSGI_APPLICATION = 'PaginaRegistro.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
+#Antigua base de datos en sqlite3
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
+# Nueva configuración para PostgreSQL (Docker)
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'pcpuma_db',               # Mismo nombre que en docker-compose
+        'USER': 'admin_pcpuma',            # Mismo usuario que en docker-compose
+        'PASSWORD': 'password_seguro_123', # Misma contraseña que en docker-compose
+        'HOST': 'localhost',               # Porque el puerto 5432 está expuesto en tu Mac
+        'PORT': '5433',
     }
 }
 
@@ -130,7 +145,10 @@ MAILERS = {
 }
 
 # A dónde ir después de iniciar sesión con éxito
-LOGIN_REDIRECT_URL = 'inicio' 
+LOGIN_REDIRECT_URL = 'inicio'
 
 # A dónde enviar a los intrusos que intenten entrar sin sesión
 LOGIN_URL = 'login'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

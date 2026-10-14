@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  db_pcpuma:
+    image: postgres:15-alpine
+    container_name: postgres_pcpuma
+    restart: always
+    environment:
+      POSTGRES_DB: pcpuma_db
+      POSTGRES_USER: admin_pcpuma
+      POSTGRES_PASSWORD: password_seguro_123
+    ports:
+      - "5433:5432"
+    volumes:
+      - pcpuma_postgres_data:/var/lib/postgresql/data
+
+  # NUEVO SERVICIO PARA PGADMIN
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4_pcpuma
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pcpuma.com  # Tu usuario para entrar a pgAdmin
+      PGADMIN_DEFAULT_PASSWORD: admin          # Tu contraseña para entrar a pgAdmin
+    ports:
+      - "5050:80" # Podrás ver la interfaz gráfica en el puerto 5050
+    depends_on:
+      - db_pcpuma
+
+volumes:
+  pcpuma_postgres_data:

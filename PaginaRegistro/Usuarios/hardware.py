@@ -7,11 +7,17 @@ BAUDRATE = 57600
 ESTADO_SENSOR = "Iniciando..."
 
 def encontrar_puerto_arduino():
-    """Escanea y devuelve el puerto del puente Zombie automáticamente."""
+    """Escanea y devuelve el puerto del sensor en macOS o Windows."""
     puertos = serial.tools.list_ports.comports()
     for puerto in puertos:
+        # 1. Búsqueda para macOS 
         if "usbmodem" in puerto.device:
             return puerto.device
+            
+        # 2. Búsqueda para Windows
+        elif "USB" in puerto.description or "CH340" in puerto.description or "CP210" in puerto.description:
+            return puerto.device
+            
     return None
 
 def get_sensor():

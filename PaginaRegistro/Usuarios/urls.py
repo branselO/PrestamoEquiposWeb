@@ -1,9 +1,9 @@
 from django.urls import path
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LogoutView
 from . import views
-from .forms import StaffAuthenticationForm
 
 urlpatterns = [
+
     # 1. Rutas de Autenticación Principal
     path('login/', views.CustomLoginView.as_view(), name='login'), 
     path('logout/', LogoutView.as_view(next_page='login'), name='logout'),
@@ -18,6 +18,10 @@ urlpatterns = [
     
     path('login/huella/', views.api_login_huella, name='verificar_huella'),
 
-    # 4. Rutas del Panel de Control
+    ###### Rutas del Panel de Control ######
     path('inicio/', views.InicioView.as_view(), name='inicio'),
+    path('inicio/admin_usuarios/', views.adminUsuariosView.as_view(), name='admin_usuarios'),
+
+    path('perfil/<int:usuario_id>/', views.perfil_usuario, name='perfil_usuario'),
+    
 ]

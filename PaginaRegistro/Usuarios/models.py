@@ -20,7 +20,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     nombre = models.CharField(max_length=50)
     apellidos = models.CharField(max_length=50)
+    numero_cuenta = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de Cuenta / Trabajador")
 
+    dependencia = models.ForeignKey('Dependencia', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Dependencia/Facultad")
     huella_template = models.BinaryField(null=True, blank=True)
     
     is_active = models.BooleanField(default=True)
@@ -34,16 +36,42 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return f"{self.nombre} {self.apellidos} <{self.email}>"
 
-    # Añade esto al final de tu archivo users/models.py
+    @property
+    def tiene_sancion_activa(self):
+        # Busca si existe al menos una sanción con estado 'activa'
+        return self.mis_sanciones.filter(estado='activa').exists()
 
+    @property
+    def sanciones_activas(self):
+        # Devuelve la lista de las sanciones activas para mostrarlas
+        return self.mis_sanciones.filter(estado='activa')
+
+    @property
+    def prestamos_pendientes(self):
+        # Busca los préstamos (tickets) que tengan al menos un dispositivo sin devolver
+        # El .distinct() evita que el ticket salga duplicado si debe 2 dispositivos del mismo ticket
+        return self.prestamos_solicitados.filter(detalles__fecha_devuelto__isnull=True).distinct()
+
+# Proxies para diferenciar tipos de usuarios en el admin de Django
 class StaffUser(CustomUser):
     class Meta:
-        proxy = True # ¡Crucial! Evita que se cree una tabla en la BD
+        proxy = True 
         verbose_name = 'Usuario Staff'
-        verbose_name_plural = '1. Usuarios Staff' # El "1." es un truco para ordenar la lista en el panel
+        verbose_name_plural = '1. Usuarios Staff' 
 
 class NormalUser(CustomUser):
     class Meta:
         proxy = True
         verbose_name = 'Usuario Normal'
         verbose_name_plural = '2. Usuarios Normales'
+
+class Dependencia(models.Model):
+    nombre = models.CharField(max_length=150, unique=True, verbose_name="Nombre de la Dependencia/Facultad")
+    clave_corta = models.CharField(max_length=20, unique=True, verbose_name="Clave Corta (Ej. FI, DGAE)")
+
+    class Meta:
+        verbose_name = "Dependencia"
+        verbose_name_plural = "Dependencias"
+
+    def __str__(self):
+        return self.clave_corta

@@ -111,8 +111,6 @@
             padding: 0 1.5rem;
         }
         
-        /* Aquí puedes dejar estilos globales. Los estilos específicos de cada vista 
-           los puedes poner en bloques o en un archivo CSS separado. */
            
         {% block extra_css %}{% endblock %}
     </style>
@@ -125,19 +123,31 @@
         
         <div class="nav-menu">
             
-            <!-- Validamos si la URL actual se llama 'inicio' -->
             <a href="{% url 'inicio' %}" 
                class="nav-link {% if request.resolver_match.url_name == 'inicio' %}active{% endif %}">
                Inicio
             </a>
+
+            <a href="{% url 'admin_usuarios' %}" 
+               class="nav-link {% if request.resolver_match.url_name == 'admin_usuarios' %}active{% endif %}">
+               Administrar Usuarios
+            </a>
             
-            <!-- Validamos si la URL actual se llama 'crear_usuario' -->
             <a href="{% url 'register_Normal' %}" 
                class="nav-link {% if request.resolver_match.url_name == 'register_Normal' %}active{% endif %}">
                Registrar usuario
             </a>
+
+            <a href="{% url 'inventario' %}" 
+               class="nav-link {% if request.resolver_match.url_name == 'inventario' %}active{% endif %}">
+               Administrar Inventario
+            </a>
+
+            <a href="{% url 'prestamos' %}" 
+               class="nav-link {% if request.resolver_match.url_name == 'prestamos' %}active{% endif %}">
+               Administrar Préstamos
+            </a>
             
-            <!-- Formulario de Logout (este no necesita validación porque no es una pestaña) -->
             <form action="{% url 'logout' %}" method="post" class="nav-logout-form">
                 {% csrf_token %}
                 <button type="submit" class="nav-btn-logout">Cerrar Sesión</button>

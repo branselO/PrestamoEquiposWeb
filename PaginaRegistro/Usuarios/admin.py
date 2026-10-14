@@ -1,11 +1,12 @@
 from django.contrib import admin
-from .models import CustomUser, StaffUser, NormalUser
+from .models import CustomUser, StaffUser, NormalUser, Dependencia
 
-# 1. Creamos una clase base con la configuración visual para no repetir código
+admin.site.register(Dependencia)
+
 class BaseUserAdmin(admin.ModelAdmin):
-    list_display = ('email', 'nombre', 'apellidos', 'is_active', 'is_staff')
-    search_fields = ('email', 'nombre', 'apellidos')
-    list_filter = ('is_active',)
+    list_display = ('email', 'nombre', 'apellidos', 'numero_cuenta', 'is_staff')
+    list_filter = ('is_staff', 'dependencia')
+    search_fields = ('email', 'numero_cuenta', 'nombre')
 
     # Esta regla asegura que solo un Superusuario pueda ver esta sección en el menú
     def has_module_permission(self, request):

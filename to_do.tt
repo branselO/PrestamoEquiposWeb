@@ -1,0 +1,27 @@
+-Agregar función para editar los usuarios (SOLO NORMALES)
+-Agregar vista para ver el perfil seleccionado, aparte de todos los datos visualizar si:
+    -> El usuario está sancionado. Si está sansionado no puede pedir prestamos.
+    ->Si tiene un prestamo pendiente:
+        -->> Si tiene un prestamo pendiente agregar botón para hacer el seguimiento del prestamo.
+-Modificar y agregar los nuevos parámetros a usuarios a las vistas de formularios
+
+
+-En dispositivos solo cambiar el estado a todo menos "En prestamo", eso solo desde el apartado de prestamos. Si el dispositivo está en prestamos no se 
+puede modificar
+
+
+-Agregar apartado de Prestamos:
+    ->Buscar por: Pendientes/Completados    |       ID-Prestamo 
+    -->Cabezera de: ID-Prestamo     |       Fecha Salida        |       Estatus
+    ->Aparte de la visualización de los datos del prestamo agregar funciones:
+        -->>ver Perfil de usuario
+        -->>Registrar Devolución: Registramos la fecha de devolución y comentarios de la devolución
+        -->>Registrar Sanción:  Fecha devuelto ---  comentarios opcionales,     Registramos Sansión
+
+
+-Agregar apartado de Sansiones:
+    ->Buscar por: Estado Sansion        |       ID-Prestamo        |        ID-usuario
+    -->Cabezera de: ID-Sansion          |       ID-Prestamo        |        Estado Sansion
+    ->Aparte de la visualización de los datos del prestamo agregar funciones:
+        -->Si el estado es !resuelto mostrar botón de Modificar Estado
+        -->Ver perfil Usuario

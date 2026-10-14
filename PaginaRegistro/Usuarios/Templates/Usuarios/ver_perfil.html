@@ -1,0 +1,100 @@
+{% extends 'Usuarios/base.html' %}
+
+{% block title %}Perfil de {{ perfil.nombre }}{% endblock %}
+
+{% block extra_css %}
+    .profile-page { max-width: 56rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; }
+    .profile-back { color: var(--primary); font-weight: 600; text-decoration: none; font-size: .9rem; }
+    .profile-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 6px 18px rgba(31,41,55,.05); }
+    .profile-header { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+    .profile-avatar { display: grid; place-items: center; width: 4.5rem; height: 4.5rem; border-radius: 50%; background: #eef2ff; color: var(--primary); font-size: 1.5rem; font-weight: 700; text-transform: uppercase; }
+    .profile-header h1 { font-size: clamp(1.4rem, 3vw, 1.9rem); letter-spacing: -0.03em; margin-bottom: .25rem; }
+    .profile-header p { color: var(--text-muted); overflow-wrap: anywhere; }
+    .profile-status { margin-left: auto; padding: .35rem .9rem; border-radius: 999px; font-size: .85rem; font-weight: 700; background: #d1fae5; color: #065f46; }
+    .profile-status.sancionado { background: #fee2e2; color: #991b1b; }
+    .profile-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem 1.5rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+    .profile-info dt { color: var(--text-muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
+    .profile-info dd { margin: .15rem 0 0; }
+    .profile-card h2 { font-size: 1.15rem; margin-bottom: 1rem; }
+    .profile-alert { background: #fef2f2; border: 1px solid #fecaca; }
+    .profile-alert h2 { color: #991b1b; }
+    .profile-list { list-style: none; display: flex; flex-direction: column; gap: .75rem; padding: 0; margin: 0; }
+    .profile-list li { padding: .85rem 1rem; border: 1px solid var(--border); border-radius: .75rem; background: #fafafa; }
+    .profile-list ul { margin: .5rem 0 0 1.1rem; color: var(--text-muted); font-size: .9rem; }
+    .profile-muted { color: var(--text-muted); }
+    .profile-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+    .profile-btn { display: inline-block; padding: .65rem 1.2rem; border-radius: .6rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-main); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+    .profile-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .profile-btn.primary:hover { background: var(--primary-hover); }
+    .profile-btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+    .profile-btn.danger:hover { background: var(--danger-hover); }
+{% endblock %}
+
+{% block content %}
+    <section class="profile-page">
+        <a class="profile-back" href="{% url 'admin_usuarios' %}">← Volver a usuarios</a>
+
+        <div class="profile-card">
+            <div class="profile-header">
+                <span class="profile-avatar" aria-hidden="true">{{ perfil.nombre|first }}{{ perfil.apellidos|first }}</span>
+                <div>
+                    <h1>{{ perfil.nombre }} {{ perfil.apellidos }}</h1>
+                    <p>{{ perfil.email }}</p>
+                </div>
+                {% if perfil.tiene_sancion_activa %}
+                    <span class="profile-status sancionado">Sancionado</span>
+                {% else %}
+                    <span class="profile-status">Sin sanciones</span>
+                {% endif %}
+            </div>
+            <dl class="profile-info">
+                <div><dt>Número de cuenta</dt><dd>{{ perfil.numero_cuenta|default:"—" }}</dd></div>
+                <div><dt>Dependencia</dt><dd>{{ perfil.dependencia|default:"—" }}</dd></div>
+                <div><dt>Tipo</dt><dd>{% if perfil.is_staff %}Staff{% else %}Usuario normal{% endif %}</dd></div>
+            </dl>
+        </div>
+
+        {% if perfil.tiene_sancion_activa %}
+            <div class="profile-card profile-alert">
+                <h2>Usuario sancionado</h2>
+                <ul class="profile-list">
+                    {% for sancion in perfil.sanciones_activas %}
+                        <li><strong>{{ sancion.get_tipo_sancion_display }}</strong><br>
+                            <span class="profile-muted">{{ sancion.observaciones }}</span></li>
+                    {% endfor %}
+                </ul>
+                <div class="profile-actions">
+                    <button type="button" class="profile-btn danger">Ver sanción</button>
+                </div>
+            </div>
+        {% else %}
+            <p class="profile-muted">Usuario sin sansiones. Puede solicitar préstamos.</p>
+        {% endif %}
+
+        <div class="profile-card">
+            <h2>Equipos que no ha devuelto</h2>
+            {% with pendientes=perfil.prestamos_pendientes %}
+                {% if pendientes %}
+                    <ul class="profile-list">
+                        {% for prestamo in pendientes %}
+                            <li>Ticket #{{ prestamo.id }} <span class="profile-muted">(Solicitado el {{ prestamo.fecha_salida|date:"d/m/Y" }})</span>
+                                <ul>
+                                    {% for articulo in prestamo.detalles.all %}
+                                        {% if not articulo.fecha_devuelto %}
+                                            <li>{{ articulo.dispositivo.nombre }} ({{ articulo.dispositivo.codigo_inventario }})</li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    <div class="profile-actions">
+                        <a class="profile-btn primary" href="{% url 'prestamos' %}?usuario={{ perfil.id }}">Seguimiento del préstamo</a>
+                    </div>
+                {% else %}
+                    <p class="profile-muted">No tiene equipos pendientes por devolver.</p>
+                {% endif %}
+            {% endwith %}
+        </div>
+    </section>
+{% endblock %}

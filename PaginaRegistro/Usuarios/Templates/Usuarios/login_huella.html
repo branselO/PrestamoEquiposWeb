@@ -109,6 +109,39 @@
             opacity: 0.8;
         }
 
+        .btn-secondary {
+            width: 100%;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            background: white;
+            color: var(--primary);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .password-form {
+            margin-top: 1rem;
+            text-align: left;
+        }
+
+        .password-form label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .password-form input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+
         /* Icono SVG para el botón */
         .btn-verify svg {
             width: 1.25rem;
@@ -190,14 +223,82 @@
             <span id="btn-text">Escanear Huella</span>
         </button>
 
+        <button id="btn-show-password" class="btn-secondary" type="button" onclick="mostrarContrasena()">
+            Usar contraseña en su lugar
+        </button>
+
+        <form id="password-form" class="password-form" style="display: none;">
+            {% csrf_token %}
+            <input type="hidden" name="auth_method" value="password">
+            <label for="password">Contraseña</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button class="btn-verify" type="submit">Iniciar sesión con contraseña</button>
+            <button class="btn-secondary" type="button" onclick="mostrarHuella()">Usar huella</button>
+        </form>
+
         <div id="status-message" class="status-box info" style="display: none;"></div>
+
     </div>
 
     <script>
+        const statusBox = document.getElementById('status-message');
+
+        function mostrarContrasena() {
+            document.getElementById('btn-verify').style.display = 'none';
+            document.getElementById('btn-show-password').style.display = 'none';
+            document.getElementById('password-form').style.display = 'block';
+            document.getElementById('password').focus();
+        }
+
+        function mostrarHuella() {
+            document.getElementById('password-form').style.display = 'none';
+            document.getElementById('btn-verify').style.display = 'flex';
+            document.getElementById('btn-show-password').style.display = 'block';
+            statusBox.style.display = 'none';
+        }
+
+        document.getElementById('password-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const submitButton = form.querySelector('button[type="submit"]');
+            const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            submitButton.disabled = true;
+            statusBox.style.display = 'block';
+            statusBox.className = 'status-box info';
+            statusBox.innerText = 'Verificando contraseña...';
+
+            fetch("{% url 'verificar_huella' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams(new FormData(form))
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    statusBox.className = 'status-box success';
+                    statusBox.innerText = data.message;
+                    window.location.href = data.redirect_url;
+                    return;
+                }
+
+                statusBox.className = 'status-box error';
+                statusBox.innerText = data.message;
+                submitButton.disabled = false;
+            })
+            .catch(() => {
+                statusBox.className = 'status-box error';
+                statusBox.innerText = 'Error al verificar la contraseña.';
+                submitButton.disabled = false;
+            });
+        });
+
         function verificarHuella() {
             const btn = document.getElementById('btn-verify');
             const btnText = document.getElementById('btn-text');
-            const statusBox = document.getElementById('status-message');
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
             btn.disabled = true;
@@ -210,14 +311,14 @@
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 }
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     statusBox.className = "status-box success";
-                    statusBox.innerText = "✅ " + data.message;
+                    statusBox.innerText = data.message;
                     
                     setTimeout(() => {
                         window.location.href = data.redirect_url;
@@ -225,14 +326,14 @@
                     
                 } else {
                     statusBox.className = "status-box error";
-                    statusBox.innerText = "❌ " + data.message;
+                    statusBox.innerText = data.message;
                     btn.disabled = false;
                     btnText.innerText = "Reintentar";
                 }
             })
             .catch(error => {
                 statusBox.className = "status-box error";
-                statusBox.innerText = "❌ Error crítico al contactar con el hardware.";
+                statusBox.innerText = "Error crítico al contactar con el hardware.";
                 btn.disabled = false;
                 btnText.innerText = "Reintentar";
             });

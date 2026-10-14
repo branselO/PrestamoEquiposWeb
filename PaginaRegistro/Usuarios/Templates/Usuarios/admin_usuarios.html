@@ -1,0 +1,378 @@
+{% extends 'Usuarios/base.html' %}
+
+{% block title %}Administración de usuarios{% endblock %}
+
+{% block extra_css %}
+    .users-page {
+        --users-accent: #4f46e5;
+        --users-accent-soft: #eef2ff;
+    }
+
+    .users-heading {
+        margin-bottom: 1.75rem;
+    }
+
+    .users-eyebrow {
+        margin-bottom: 0.5rem;
+        color: var(--users-accent);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .users-heading h1 {
+        margin-bottom: 0.5rem;
+        font-size: clamp(1.75rem, 4vw, 2.25rem);
+        letter-spacing: -0.04em;
+    }
+
+    .users-heading p {
+        color: var(--text-muted);
+        line-height: 1.6;
+    }
+
+    .users-card {
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        background: var(--surface);
+        box-shadow: 0 12px 30px rgba(31, 41, 55, 0.06);
+    }
+
+    .users-tabs {
+        display: flex;
+        gap: 0.5rem;
+        padding: 1rem 1.25rem 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .users-tab {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        border: 0;
+        border-radius: 0.65rem 0.65rem 0 0;
+        padding: 0.8rem 1rem 1rem;
+        background: transparent;
+        color: var(--text-muted);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .users-tab:hover {
+        background: #f9fafb;
+        color: var(--text-main);
+    }
+
+    .users-tab[aria-selected="true"] {
+        color: var(--users-accent);
+    }
+
+    .users-tab[aria-selected="true"]::after {
+        position: absolute;
+        right: 0.75rem;
+        bottom: -1px;
+        left: 0.75rem;
+        height: 3px;
+        border-radius: 3px 3px 0 0;
+        background: var(--users-accent);
+        content: "";
+    }
+
+    .users-tab:focus-visible {
+        outline: 3px solid var(--focus-ring);
+        outline-offset: 2px;
+    }
+
+    .users-count {
+        display: inline-grid;
+        min-width: 1.5rem;
+        height: 1.5rem;
+        place-items: center;
+        border-radius: 999px;
+        padding: 0 0.35rem;
+        background: #f3f4f6;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .users-tab[aria-selected="true"] .users-count {
+        background: var(--users-accent-soft);
+        color: var(--users-accent);
+    }
+
+    .users-panel {
+        padding: 1.5rem;
+    }
+
+    .users-panel[hidden] {
+        display: none;
+    }
+
+    .users-panel-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .users-panel-heading h2 {
+        font-size: 1.1rem;
+    }
+
+    .users-panel-heading p {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+    }
+
+    .users-list {
+        display: grid;
+        gap: 0.75rem;
+        list-style: none;
+    }
+
+    .user-item {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 0.9rem 1rem;
+        transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .user-item:hover {
+        transform: translateY(-1px);
+        border-color: #c7d2fe;
+    }
+
+    .user-avatar {
+        display: grid;
+        flex: 0 0 2.75rem;
+        width: 2.75rem;
+        height: 2.75rem;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--users-accent-soft);
+        color: var(--users-accent);
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .user-details {
+        min-width: 0;
+    }
+
+    .user-name {
+        overflow: hidden;
+        margin-bottom: 0.2rem;
+        font-weight: 650;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .user-email {
+        overflow-wrap: anywhere;
+        color: var(--text-muted);
+        font-size: 0.875rem;
+    }
+
+    .user-profile-btn {
+        display: inline-block;
+        margin-top: 0.5rem;
+        padding: 0.35rem 0.9rem;
+        border: 1px solid var(--users-accent);
+        border-radius: 999px;
+        background: var(--users-accent-soft);
+        color: var(--users-accent);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background 0.15s, color 0.15s;
+    }
+
+    .user-profile-btn:hover,
+    .user-profile-btn:focus-visible {
+        background: var(--users-accent);
+        color: #fff;
+    }
+
+    .users-empty {
+        border: 1px dashed var(--border);
+        border-radius: 0.75rem;
+        padding: 2rem 1rem;
+        color: var(--text-muted);
+        text-align: center;
+    }
+
+    @media (max-width: 600px) {
+        .users-tabs {
+            padding-right: 0.75rem;
+            padding-left: 0.75rem;
+        }
+
+        .users-tab {
+            flex: 1;
+            justify-content: center;
+            gap: 0.4rem;
+            padding-right: 0.5rem;
+            padding-left: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .users-panel {
+            padding: 1.1rem;
+        }
+
+        .users-panel-heading {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+    }
+
+    .inv-filters { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.25rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
+    .inv-filters input, .inv-filters select { padding: .6rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font: inherit; background: #fff; }
+    .inv-filters input[type=search] { flex: 1 1 220px; }
+    .inv-filters input:focus, .inv-filters select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+
+    .inv-btn { display: inline-block; padding: .65rem 1.2rem; border-radius: .6rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-main); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+    .inv-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .inv-btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+{% endblock %}
+
+{% block content %}
+    <section class="users-page" aria-labelledby="users-title">
+        <header class="users-heading">
+            <h1 id="users-title">Administración de usuarios</h1>
+            <p>Consulta los usuarios registrados y el personal de la plataforma.</p>
+        </header>
+
+        <form class="inv-filters" method="get">
+            <input type="search" name="nombre" value="{{ nombre }}" placeholder="Buscar por nombre…" aria-label="Nombre">
+            <input type="search" name="email" value="{{ email }}" placeholder="Buscar por email…" aria-label="Email">
+            </select>
+            <button type="submit" class="inv-btn primary">Filtrar</button>
+            <a href="{% url 'admin_usuarios' %}" class="inv-btn">Limpiar</a>
+        </form>
+
+        <div class="users-card">
+            <div class="users-tabs" role="tablist" aria-label="Tipos de usuario">
+                <button
+                    type="button"
+                    id="btn-normales"
+                    class="users-tab"
+                    role="tab"
+                    aria-controls="usuarios-normales"
+                    aria-selected="true"
+                    tabindex="0"
+                >
+                    Normales
+                    <span class="users-count">{{ usuarios_normales|length }}</span>
+                </button>
+                <button
+                    type="button"
+                    id="btn-staff"
+                    class="users-tab"
+                    role="tab"
+                    aria-controls="usuarios-staff"
+                    aria-selected="false"
+                    tabindex="-1"
+                >
+                    Staff
+                    <span class="users-count">{{ usuarios_staff|length }}</span>
+                </button>
+            </div>
+
+            <section
+                id="usuarios-normales"
+                class="users-panel"
+                role="tabpanel"
+                aria-labelledby="btn-normales"
+                tabindex="0"
+            >
+                <div class="users-panel-heading">
+                    <h2>Usuarios normales</h2>
+                    <p>{{ usuarios_normales|length }} usuario{{ usuarios_normales|length|pluralize }}</p>
+                </div>
+                {% if usuarios_normales %}
+                    <ul class="users-list">
+                        {% for usuario in usuarios_normales %}
+                            <li class="user-item">
+                                <span class="user-avatar" aria-hidden="true">{{ usuario.nombre|first }}{{ usuario.apellidos|first }}</span>
+                                <div class="user-details">
+                                    <p class="user-name">{{ usuario.nombre }} {{ usuario.apellidos }}</p>
+                                    <p class="user-email">{{ usuario.email }}</p>
+                                    <a class="user-profile-btn" href="{% url 'perfil_usuario' usuario.id %}">Ver perfil</a>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="users-empty">Todavía no hay usuarios normales registrados.</p>
+                {% endif %}
+            </section>
+
+            <section
+                id="usuarios-staff"
+                class="users-panel"
+                role="tabpanel"
+                aria-labelledby="btn-staff"
+                tabindex="0"
+                hidden
+            >
+                <div class="users-panel-heading">
+                    <h2>Usuarios staff</h2>
+                    <p>{{ usuarios_staff|length }} usuario{{ usuarios_staff|length|pluralize }}</p>
+                </div>
+                {% if usuarios_staff %}
+                    <ul class="users-list">
+                        {% for usuario in usuarios_staff %}
+                            <li class="user-item">
+                                <span class="user-avatar" aria-hidden="true">{{ usuario.nombre|first }}{{ usuario.apellidos|first }}</span>
+                                <div class="user-details">
+                                    <p class="user-name">{{ usuario.nombre }} {{ usuario.apellidos }}</p>
+                                    <p class="user-email">{{ usuario.email }}</p>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="users-empty">Todavía no hay usuarios staff registrados.</p>
+                {% endif %}
+            </section>
+        </div>
+    </section>
+
+    <script>
+        const userTabs = document.querySelectorAll('.users-tab');
+
+        userTabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                userTabs.forEach((item) => {
+                    const isSelected = item === tab;
+                    item.setAttribute('aria-selected', String(isSelected));
+                    item.tabIndex = isSelected ? 0 : -1;
+                    document.getElementById(item.getAttribute('aria-controls')).hidden = !isSelected;
+                });
+            });
+
+            tab.addEventListener('keydown', (event) => {
+                if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                    event.preventDefault();
+                    const nextIndex = (Array.from(userTabs).indexOf(tab) + (event.key === 'ArrowRight' ? 1 : -1) + userTabs.length) % userTabs.length;
+                    userTabs[nextIndex].focus();
+                    userTabs[nextIndex].click();
+                }
+            });
+        });
+    </script>
+{% endblock %}

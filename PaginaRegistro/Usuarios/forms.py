@@ -3,7 +3,18 @@ from .models import CustomUser
 from django.contrib.auth.forms import AuthenticationForm
 from django import forms
 
-# 1. Formulario Público: Fuerza is_staff = True
+class EmailLoginForm(forms.Form):
+    email = forms.EmailField(
+        label='Correo electrónico',
+        widget=forms.EmailInput(attrs={'autofocus': True, 'autocomplete': 'email'}),
+    )
+
+    def __init__(self, *args, request=None, **kwargs):
+        self.request = request
+        super().__init__(*args, **kwargs)
+
+
+# 1. Registro de Staff
 class StaffSignUpForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = CustomUser
@@ -17,7 +28,7 @@ class StaffSignUpForm(UserCreationForm):
             user.save()
         return user
 
-# 2. Formulario Interno: Crea usuarios normales (is_staff = False)
+# 2. Registro de Usuario Normal
 class NormalUserCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = CustomUser
@@ -25,7 +36,7 @@ class NormalUserCreationForm(UserCreationForm):
 
 class StaffAuthenticationForm(AuthenticationForm):
     def confirm_login_allowed(self, user):
-        # 1. Primero, dejamos que Django verifique si el usuario está activo (comportamiento normal)
+        # 1. Primero, dejamos que Django verifique si el usuario está activo 
         super().confirm_login_allowed(user)
         
         # 2. Si está activo, verificamos si es Staff. Si no lo es, lanzamos un error.
