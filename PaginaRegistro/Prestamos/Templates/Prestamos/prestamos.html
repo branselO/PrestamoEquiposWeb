@@ -2,184 +2,156 @@
 
 {% block title %}Administración de préstamos{% endblock %}
 
-{% block extra_css %}
-    .users-heading { margin-bottom: 1.5rem; }
-    .users-heading h1 { margin-bottom: .5rem; font-size: clamp(1.75rem, 4vw, 2.25rem); letter-spacing: -0.04em; }
-    .users-heading p { color: var(--text-muted); line-height: 1.6; }
-
-    .inv-filters { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.25rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
-    .inv-filters input, .inv-filters select { padding: .6rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font: inherit; background: #fff; }
-    .inv-filters input[type=search], .inv-filters input[type=number] { flex: 1 1 220px; }
-    .inv-filters input:focus, .inv-filters select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
-
-    .inv-btn { display: inline-block; padding: .65rem 1.2rem; border-radius: .6rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-main); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
-    .inv-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-    .inv-btn.primary:hover { background: var(--primary-hover); }
-
-    .inv-list { display: flex; flex-direction: column; gap: .6rem; }
-    .inv-item { background: var(--surface); border: 1px solid var(--border); border-radius: .85rem; box-shadow: 0 6px 18px rgba(31,41,55,.05); }
-    .inv-item summary { display: flex; align-items: center; gap: 1rem; padding: .9rem 1.1rem; cursor: pointer; list-style: none; }
-    .inv-item summary::-webkit-details-marker { display: none; }
-    .inv-id { font-family: monospace; font-weight: 700; color: var(--primary); min-width: 6rem; }
-    .inv-name { flex: 1; font-weight: 600; }
-    .inv-more { color: var(--primary); font-size: .85rem; font-weight: 600; }
-    .inv-item[open] .inv-more::before { content: "Ver menos"; }
-    .inv-item:not([open]) .inv-more::before { content: "Ver más"; }
-    .inv-more { font-size: 0; }
-    .inv-more::before { font-size: .85rem; }
-    .inv-details { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .9rem 1.5rem; padding-top: 1rem; }
-    .inv-details dt { color: var(--text-muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
-    .inv-details dd { margin: .15rem 0 0; line-height: 1.5; }
-    .inv-detail-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .75rem; }
-    .inv-badge { padding: .15rem .6rem; border-radius: 999px; background: #eef2ff; color: var(--primary); font-size: .8rem; font-weight: 600; }
-    .inv-badge.completado { background: #d1fae5; color: #065f46; }
-    .inv-badge.pendiente { background: #FFFFC5; color: #BA8E23; }
-    .inv-empty { padding: 2rem; text-align: center; color: var(--text-muted); background: var(--surface); border: 1px dashed var(--border); border-radius: .85rem; }
-
-    dialog.return-modal { position: fixed; inset: 0; margin: auto; overflow-y: auto; border: 0; border-radius: 1rem; padding: 1.5rem; width: min(640px, 92vw); max-height: 90vh; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
-    dialog.return-modal::backdrop { background: rgba(31,41,55,.35); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-    .return-modal h2 { margin: 0 0 .25rem; }
-    .return-modal .hint { color: var(--text-muted); margin-bottom: 1rem; }
-    .return-row { display: flex; align-items: center; gap: .75rem; padding: .6rem 0; border-bottom: 1px solid var(--border); }
-    .return-row label.check { display: flex; align-items: center; gap: .5rem; flex: 1; font-weight: 600; }
-    .return-row input[type=text] { flex: 1; padding: .5rem .7rem; border: 1px solid var(--border); border-radius: .6rem; font: inherit; }
-    .return-modal textarea { width: 100%; min-height: 6rem; margin-top: .4rem; padding: .6rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font: inherit; resize: vertical; box-sizing: border-box; }
-    .return-actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.25rem; }
-    .flash { padding: .8rem 1rem; border-radius: .6rem; margin-bottom: 1rem; background: #d1fae5; color: #065f46; }
-    .flash.error { background: #fee2e2; color: #991b1b; }
-{% endblock %}
-
 {% block content %}
-    <section class="users-page" aria-labelledby="users-title">
-        <header class="users-heading">
-            <h1 id="users-title">Administración de Préstamos</h1>
-            <p>Consulta los préstamos registrados. Puedes filtrarlos por ID o por estado.</p>
-        </header>
+<section class="space-y-6" aria-labelledby="users-title">
+    <header>
+        <p class="kicker">Operación</p>
+        <h1 id="users-title" class="page-title">Administración de préstamos</h1>
+        <p class="page-lead">Consulta los préstamos registrados. Puedes filtrarlos por ID o por estado.</p>
+    </header>
 
-        {% for message in messages %}
-            <div class="flash {{ message.tags }}">{{ message }}</div>
-        {% endfor %}
+    {% for message in messages %}
+        <div class="flash {{ message.tags }}">{{ message }}</div>
+    {% endfor %}
 
-        {% if usuario_filtrado %}
-            <div class="inv-empty" style="margin-bottom:1.25rem;text-align:left;">
-                Mostrando únicamente los préstamos pendientes de <strong>{{ usuario_filtrado.nombre }} {{ usuario_filtrado.apellidos }}</strong>.
-                <a href="{% url 'prestamos' %}">Ver todos</a>
-            </div>
-        {% endif %}
+    {% if usuario_filtrado %}
+        <div class="notice">
+            <p>Mostrando únicamente los préstamos pendientes de <strong>{{ usuario_filtrado.nombre }} {{ usuario_filtrado.apellidos }}</strong>.</p>
+            <a href="{% url 'prestamos' %}" class="font-semibold text-teal-800 underline-offset-4 transition-all duration-300 hover:underline">Ver todos</a>
+        </div>
+    {% endif %}
 
-        {% if codigo_inventario %}
-            <div class="inv-empty" style="margin-bottom:1.25rem;text-align:left;">
-                Mostrando únicamente el préstamo pendiente del dispositivo <strong>{{ codigo_inventario }}{% if dispositivo_filtrado %} — {{ dispositivo_filtrado.nombre }}{% endif %}</strong>.
-                <a href="{% url 'prestamos' %}">Ver todos</a>
-            </div>
-        {% endif %}
+    {% if codigo_inventario %}
+        <div class="notice">
+            <p>Mostrando únicamente el préstamo pendiente del dispositivo <strong>{{ codigo_inventario }}{% if dispositivo_filtrado %} — {{ dispositivo_filtrado.nombre }}{% endif %}</strong>.</p>
+            <a href="{% url 'prestamos' %}" class="font-semibold text-teal-800 underline-offset-4 transition-all duration-300 hover:underline">Ver todos</a>
+        </div>
+    {% endif %}
 
-        <form class="inv-filters" method="get">
-            {% if usuario_filtrado %}<input type="hidden" name="usuario" value="{{ usuario_filtrado.id }}">{% endif %}
-            {% if codigo_inventario %}<input type="hidden" name="codigo_inventario" value="{{ codigo_inventario }}">{% endif %}
-            <input type="number" name="id" min="1" value="{{ busqueda_id }}" placeholder="Buscar por ID…" aria-label="ID del préstamo">
-            <select name="estado" aria-label="Estado">
-                <option value="">Todos los estados</option>
-                <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendientes</option>
-                <option value="completado" {% if estado == 'completado' %}selected{% endif %}>Completados</option>
-            </select>
-            <button type="submit" class="inv-btn primary">Filtrar</button>
-            <a href="?" class="inv-btn">Limpiar</a>
-        </form>
+    <form class="filters" method="get">
+        {% if usuario_filtrado %}<input type="hidden" name="usuario" value="{{ usuario_filtrado.id }}">{% endif %}
+        {% if codigo_inventario %}<input type="hidden" name="codigo_inventario" value="{{ codigo_inventario }}">{% endif %}
+        <input type="number" name="id" min="1" value="{{ busqueda_id }}" placeholder="Buscar por ID…" aria-label="ID del préstamo">
+        <select name="estado" aria-label="Estado">
+            <option value="">Todos los estados</option>
+            <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendientes</option>
+            <option value="completado" {% if estado == 'completado' %}selected{% endif %}>Completados</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="?" class="btn btn-secondary">Limpiar</a>
+    </form>
 
-        <p style="margin:1.0rem; text-align:right;"><a href="{% url 'registrar_prestamo' %}" class="inv-btn primary">Registrar Préstamos</a></p>
+    <div class="toolbar">
+        <a href="{% url 'registrar_prestamo' %}" class="btn btn-primary">Registrar préstamo</a>
+    </div>
 
-        <div class="inv-list">
-            {% for prestamo in prestamos %}
-                <details class="inv-item">
-                    <summary>
-                        <span class="inv-id">#{{ prestamo.id }}</span>
-                        <span class="inv-name">{{ prestamo.fecha_salida|date:"d/m/Y H:i" }}</span>
-                        {% if prestamo.estado_ticket == "Completado" %}
-                            <span class="inv-badge completado">Completado</span>
-                        {% else %}
-                            <span class="inv-badge pendiente">Pendiente</span>
-                        {% endif %}
-                        <span class="inv-more" aria-hidden="true">.</span>
-                    </summary>
-                    <dl class="inv-details">
-                        <div><dt>Usuario que solicita</dt><dd>{{ prestamo.usuario_solicita.email }}</dd></div>
-                        <div><dt>Staff que autoriza</dt><dd>{{ prestamo.staff_autoriza.email|default:"—" }}</dd></div>
-                        <div><dt>Devolución esperada</dt><dd>{{ prestamo.fecha_devolucion_esperada|date:"d/m/Y H:i" }}</dd></div>
-                        <div><dt>Detalle del estado</dt><dd>{{ prestamo.estado_ticket }}</dd></div>
-                        <div>
-                            <dt>Dispositivos</dt>
-                            <dd>
-                                {% for detalle in prestamo.detalles.all %}
+    <div class="space-y-3">
+        {% for prestamo in prestamos %}
+            <details class="record">
+                <summary>
+                    <span class="font-mono text-sm font-bold text-teal-800">#{{ prestamo.id }}</span>
+                    <span class="min-w-0 flex-1 basis-full font-semibold text-slate-900 sm:basis-auto">{{ prestamo.fecha_salida|date:"d/m/Y H:i" }}</span>
+                    {% if prestamo.estado_ticket == "Completado" %}
+                        <span class="badge completado">Completado</span>
+                    {% else %}
+                        <span class="badge pendiente">Pendiente</span>
+                    {% endif %}
+                    <span class="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-teal-800 sm:ml-0">
+                        <span class="when-closed">Ver más</span>
+                        <span class="when-open">Ver menos</span>
+                        <svg class="chevron h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+                    </span>
+                </summary>
+                <dl class="grid grid-cols-1 gap-4 border-t border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-2 sm:gap-x-8 sm:p-5">
+                    <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Usuario que solicita</dt><dd class="mt-1 break-all text-sm font-medium text-slate-900">{{ prestamo.usuario_solicita.email }}</dd></div>
+                    <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Staff que autoriza</dt><dd class="mt-1 break-all text-sm font-medium text-slate-900">{{ prestamo.staff_autoriza.email|default:"—" }}</dd></div>
+                    <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Devolución esperada</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ prestamo.fecha_devolucion_esperada|date:"d/m/Y H:i" }}</dd></div>
+                    <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Detalle del estado</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ prestamo.estado_ticket }}</dd></div>
+                    <div class="sm:col-span-2">
+                        <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Dispositivos</dt>
+                        <dd class="mt-1 space-y-1 text-sm leading-relaxed text-slate-800">
+                            {% for detalle in prestamo.detalles.all %}
+                                <p>
                                     {% if detalle.fecha_devuelto %}
-                                        {{ detalle.dispositivo.codigo_inventario }} - devuelto por {{ detalle.nombre_externo_devuelve|default:"—" }} el {{ detalle.fecha_devuelto|date:"d/m/Y H:i" }}
+                                        {{ detalle.dispositivo.codigo_inventario }} — devuelto por {{ detalle.nombre_externo_devuelve|default:"—" }} el {{ detalle.fecha_devuelto|date:"d/m/Y H:i" }}
                                     {% else %}
                                         {{ detalle.dispositivo.codigo_inventario }} — EN USO
-                                    {% endif %}<br>
-                                {% empty %}
-                                    Sin dispositivos
-                                {% endfor %}
-                            </dd>
-                        </div>
-                        {% if prestamo.comentarios %}
-                        <div><dt>Comentarios</dt><dd style="white-space:pre-line;">{{ prestamo.comentarios }}</dd></div>
+                                    {% endif %}
+                                </p>
+                            {% empty %}
+                                <p>Sin dispositivos</p>
+                            {% endfor %}
+                        </dd>
+                    </div>
+                    {% if prestamo.comentarios %}
+                        <div class="sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Comentarios</dt><dd class="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-800">{{ prestamo.comentarios }}</dd></div>
+                    {% endif %}
+                    <div class="actions sm:col-span-2">
+                        <a href="{% url 'perfil_usuario' prestamo.usuario_solicita.id %}" class="btn btn-secondary">Ver perfil de usuario</a>
+                        <a href="{% url 'registrar_sancion' %}?prestamo={{ prestamo.id }}" class="btn btn-secondary">Registrar sanción</a>
+                        <button type="button" class="btn btn-secondary" data-open-return="comment-{{ prestamo.id }}">Agregar comentario</button>
+                        {% if prestamo.estado_ticket != "Completado" %}
+                            <button type="button" class="btn btn-primary" data-open-return="return-{{ prestamo.id }}">Registrar devolución</button>
                         {% endif %}
-                        <div class="inv-detail-actions">
-                            <a href="{% url 'perfil_usuario' prestamo.usuario_solicita.id %}" class="inv-btn">Ver perfil de Usuario</a>
-                            <a href="{% url 'registrar_sancion' %}?prestamo={{ prestamo.id }}" class="inv-btn">Registrar Sanción</a>
-                            <button type="button" class="inv-btn" data-open-return="comment-{{ prestamo.id }}">Agregar Comentario</button>
-                            {% if prestamo.estado_ticket != "Completado" %}
-                                <button type="button" class="inv-btn primary" data-open-return="return-{{ prestamo.id }}">Registrar Devolución</button>
-                            {% endif %}
-                        </div>
-                    </dl>
-                </details>
-                <dialog class="return-modal" id="comment-{{ prestamo.id }}">
-                    <form method="post" action="{% url 'agregar_comentario' prestamo.id %}">
-                        {% csrf_token %}
-                        <h2>Agregar comentario #{{ prestamo.id }}</h2>
-                        <label for="comentario-extra-{{ prestamo.id }}" style="display:block;margin-top:1rem;font-weight:600;">Comentario</label>
-                        <textarea id="comentario-extra-{{ prestamo.id }}" name="comentarios" required placeholder="Escribe un comentario…"></textarea>
-                        <div class="return-actions">
-                            <button type="button" class="inv-btn" data-close-return>Cancelar</button>
-                            <button type="submit" class="inv-btn primary">Guardar comentario</button>
-                        </div>
-                    </form>
-                </dialog>
-                {% if prestamo.estado_ticket != "Completado" %}
-                <dialog class="return-modal" id="return-{{ prestamo.id }}">
-                    <form method="post" action="{% url 'registrar_devolucion' prestamo.id %}">
-                        {% csrf_token %}
-                        <h2>Registrar devolución #{{ prestamo.id }}</h2>
-                        <p class="hint">Marca los dispositivos que se devuelven e indica quién los entrega.</p>
+                    </div>
+                </dl>
+            </details>
+            <dialog class="modal" id="comment-{{ prestamo.id }}">
+                <form method="post" action="{% url 'agregar_comentario' prestamo.id %}">
+                    {% csrf_token %}
+                    <h2 class="text-xl font-bold tracking-tight">Agregar comentario #{{ prestamo.id }}</h2>
+                    <label class="field-label mt-4" for="comentario-extra-{{ prestamo.id }}">Comentario</label>
+                    <textarea id="comentario-extra-{{ prestamo.id }}" class="field min-h-28" name="comentarios" required placeholder="Escribe un comentario…"></textarea>
+                    <div class="actions mt-5 sm:justify-end">
+                        <button type="button" class="btn btn-secondary" data-close-return>Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar comentario</button>
+                    </div>
+                </form>
+            </dialog>
+            {% if prestamo.estado_ticket != "Completado" %}
+            <dialog class="modal" id="return-{{ prestamo.id }}">
+                <form method="post" action="{% url 'registrar_devolucion' prestamo.id %}">
+                    {% csrf_token %}
+                    <h2 class="text-xl font-bold tracking-tight">Registrar devolución #{{ prestamo.id }}</h2>
+                    <p class="mt-2 text-sm leading-relaxed text-slate-600">Marca los dispositivos que se devuelven e indica quién los entrega.</p>
+                    <div class="mt-4">
                         {% for detalle in prestamo.detalles.all %}
                             {% if not detalle.fecha_devuelto %}
-                                <div class="return-row">
-                                    <label class="check">
-                                        <input type="checkbox" name="detalles" value="{{ detalle.id }}" checked>
-                                        {{ detalle.dispositivo.codigo_inventario }} — {{ detalle.dispositivo.nombre }}
+                                <div class="flex flex-col gap-3 border-b border-slate-200 py-3 last:border-0 sm:flex-row sm:items-center">
+                                    <label class="flex flex-1 items-start gap-3 text-sm font-semibold text-slate-800">
+                                        <input type="checkbox" class="mt-0.5 h-4 w-4 accent-teal-800" name="detalles" value="{{ detalle.id }}" checked>
+                                        <span>{{ detalle.dispositivo.codigo_inventario }} — {{ detalle.dispositivo.nombre }}</span>
                                     </label>
-                                    <input type="text" name="entrega_{{ detalle.id }}" value="{{ prestamo.usuario_solicita.nombre }} {{ prestamo.usuario_solicita.apellidos }}" placeholder="Quién lo entrega" aria-label="Quién entrega {{ detalle.dispositivo.codigo_inventario }}">
+                                    <input type="text" class="field sm:max-w-xs" name="entrega_{{ detalle.id }}" value="{{ prestamo.usuario_solicita.nombre }} {{ prestamo.usuario_solicita.apellidos }}" placeholder="Quién lo entrega" aria-label="Quién entrega {{ detalle.dispositivo.codigo_inventario }}">
                                 </div>
                             {% endif %}
                         {% endfor %}
-                        <label for="comentarios-{{ prestamo.id }}" style="display:block;margin-top:1rem;font-weight:600;">Comentarios del préstamo</label>
-                        <textarea id="comentarios-{{ prestamo.id }}" name="comentarios" placeholder="Ej: Pantalla rayada, cargador incompleto…"></textarea>
-                        <div class="return-actions">
-                            <button type="button" class="inv-btn" data-close-return>Cancelar</button>
-                            <button type="submit" class="inv-btn primary">Confirmar devolución</button>
-                        </div>
-                    </form>
-                </dialog>
-                {% endif %}
-            {% empty %}
-                <div class="inv-empty">No se encontraron préstamos.</div>
-            {% endfor %}
-        </div>  
-    </section>
-    <script>
-        document.querySelectorAll('[data-open-return]').forEach(b => b.addEventListener('click', () => document.getElementById(b.dataset.openReturn).showModal()));
-        document.querySelectorAll('[data-close-return]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
-        document.querySelectorAll('dialog.return-modal').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
-    </script>
+                    </div>
+                    <label class="field-label mt-4" for="comentarios-{{ prestamo.id }}">Comentarios del préstamo</label>
+                    <textarea id="comentarios-{{ prestamo.id }}" class="field min-h-28" name="comentarios" placeholder="Ej: Pantalla rayada, cargador incompleto…"></textarea>
+                    <div class="actions mt-5 sm:justify-end">
+                        <button type="button" class="btn btn-secondary" data-close-return>Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Confirmar devolución</button>
+                    </div>
+                </form>
+            </dialog>
+            {% endif %}
+        {% empty %}
+            <div class="empty">No se encontraron préstamos.</div>
+        {% endfor %}
+    </div>
+</section>
+<script>
+    document.querySelectorAll('[data-open-return]').forEach((button) => {
+        button.addEventListener('click', () => document.getElementById(button.dataset.openReturn).showModal());
+    });
+    document.querySelectorAll('[data-close-return]').forEach((button) => {
+        button.addEventListener('click', () => button.closest('dialog').close());
+    });
+    document.querySelectorAll('dialog.modal').forEach((dialog) => {
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) dialog.close();
+        });
+    });
+</script>
 {% endblock %}

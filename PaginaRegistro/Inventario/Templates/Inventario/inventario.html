@@ -2,107 +2,80 @@
 
 {% block title %}Administración de inventario{% endblock %}
 
-{% block extra_css %}
-    .users-heading { margin-bottom: 1.5rem; }
-    .users-heading h1 { margin-bottom: .5rem; font-size: clamp(1.75rem, 4vw, 2.25rem); letter-spacing: -0.04em; }
-    .users-heading p { color: var(--text-muted); line-height: 1.6; }
-
-    .inv-filters { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.25rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
-    .inv-filters input, .inv-filters select { padding: .6rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font: inherit; background: #fff; }
-    .inv-filters input[type=search] { flex: 1 1 220px; }
-    .inv-filters input:focus, .inv-filters select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
-
-    .inv-btn { display: inline-block; padding: .65rem 1.2rem; border-radius: .6rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-main); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
-    .inv-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-    .inv-btn.primary:hover { background: var(--primary-hover); }
-
-    .inv-list { display: flex; flex-direction: column; gap: .6rem; }
-    .inv-item { background: var(--surface); border: 1px solid var(--border); border-radius: .85rem; box-shadow: 0 6px 18px rgba(31,41,55,.05); }
-    .inv-item summary { display: flex; align-items: center; gap: 1rem; padding: .9rem 1.1rem; cursor: pointer; list-style: none; }
-    .inv-item summary::-webkit-details-marker { display: none; }
-    .inv-id { font-family: monospace; font-weight: 700; color: var(--primary); min-width: 6rem; }
-    .inv-name { flex: 1; font-weight: 600; }
-    .inv-more { color: var(--primary); font-size: .85rem; font-weight: 600; }
-    .inv-item[open] .inv-more::before { content: "Ver menos"; }
-    .inv-item:not([open]) .inv-more::before { content: "Ver más"; }
-    .inv-more { font-size: 0; }
-    .inv-more::before { font-size: .85rem; }
-    .inv-details { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .9rem 1.5rem; padding-top: 1rem; }
-    .inv-details dt { color: var(--text-muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
-    .inv-details dd { margin: .15rem 0 0; line-height: 1.5; }
-    .inv-details img { max-width: 160px; border-radius: .5rem; }
-    .inv-detail-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .75rem; }
-    .inv-badge { padding: .15rem .6rem; border-radius: 999px; background: #eef2ff; color: var(--primary); font-size: .8rem; font-weight: 600; }
-    .inv-badge.disponible { background: #d1fae5; color: #065f46; }
-    .inv-badge.prestado { background: #FFFFC5; color: #BA8E23; }
-    .inv-badge.mantenimiento { background: #90D5FF; color: #000080; }
-    .inv-badge.extraviado { background: #FF746C; color: #950606; }
-    .inv-empty { padding: 2rem; text-align: center; color: var(--text-muted); background: var(--surface); border: 1px dashed var(--border); border-radius: .85rem; }
-    .inv-footer { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
-{% endblock %}
-
 {% block content %}
-    <section class="users-page" aria-labelledby="users-title">
-        <header class="users-heading">
-            <h1 id="users-title">Administración de Inventario</h1>
-            <p>Consulta los dispositivos registrados. Puedes filtrarlos por nombre, categoría o disponibilidad.</p>
-        </header>
+<section class="space-y-6" aria-labelledby="users-title">
+    <header>
+        <p class="kicker">Equipos</p>
+        <h1 id="users-title" class="page-title">Administración de inventario</h1>
+        <p class="page-lead">Consulta los dispositivos registrados. Puedes filtrarlos por nombre, categoría o disponibilidad.</p>
+    </header>
 
-        <form class="inv-filters" method="get">
-            <input type="search" name="codigo_inventario" value="{{ codigo_inventario }}" placeholder="Buscar por código..." aria-label="ID">
-            <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre…" aria-label="Nombre">
-            <select name="categoria" aria-label="Categoría">
-                <option value="">Todas las categorías</option>
-                {% for c in categorias %}
-                    <option value="{{ c.id }}" {% if categoria_sel == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
-                {% endfor %}
-            </select>
-            <select name="estado" aria-label="Disponibilidad">
-                <option value="">Toda disponibilidad</option>
-                {% for valor, etiqueta in estados %}
-                    <option value="{{ valor }}" {% if estado_sel == valor %}selected{% endif %}>{{ etiqueta }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="inv-btn primary">Filtrar</button>
-            <a href="{% url 'inventario' %}" class="inv-btn">Limpiar</a>
-        </form>
-
-        <div class="inv-actions" style="margin-bottom: 1rem; text-align: right;">
-            <a href="{% url 'dispositivo_nuevo' %}" class="inv-btn primary">Añadir dispositivo</a>
-            <a href="{% url 'categoria_nueva' %}" class="inv-btn">Añadir categoría</a>
-        </div>
-
-        <div class="inv-list">
-            {% for d in dispositivos %}
-                <details class="inv-item">
-                    <summary>
-                        <span class="inv-id">{{ d.codigo_inventario }}</span>
-                        <span class="inv-name">{{ d.nombre }}</span>
-                        <span class="inv-more" aria-hidden="true">.</span>
-                    </summary>
-                    <dl class="inv-details">
-                        <div><dt>ID de inventario</dt><dd>{{ d.codigo_inventario }}</dd></div>
-                        <div><dt>Nombre</dt><dd>{{ d.nombre }}</dd></div>
-                        <div><dt>Categoría</dt><dd>{{ d.categoria.nombre|default:"Sin categoría" }}</dd></div>
-                        <div>
-                            <dt>Disponibilidad</dt><dd><span class="inv-badge {{ d.estado }}">{{ d.get_estado_display }}</span></dd>
-                        </div>
-                        <div><dt>Especificaciones</dt><dd>{{ d.especificaciones|linebreaksbr }}</dd></div>
-                        <div><dt>Comentarios</dt><dd>{{ d.comentarios|default:"—"|linebreaksbr }}</dd></div>
-                        {% if d.foto %}<div><dt>Foto</dt><dd><img src="{{ d.foto.url }}" alt="{{ d.nombre }}"></dd></div>{% endif %}
-                        <div class="inv-detail-actions">
-                            {% if d.estado != 'prestado' %}
-                                <a href="{% url 'dispositivo_editar' d.pk %}" class="inv-btn">Editar dispositivo</a>
-                            {% endif %}
-                            {% if d.estado == 'prestado' %}
-                                <a href="{% url 'prestamos' %}?codigo_inventario={{ d.codigo_inventario }}" class="inv-btn">Dar seguimiento al préstamo</a>
-                            {% endif %}
-                        </div>
-                    </dl>
-                </details>
-            {% empty %}
-                <div class="inv-empty">No se encontraron dispositivos.</div>
+    <form class="filters" method="get">
+        <input type="search" name="codigo_inventario" value="{{ codigo_inventario }}" placeholder="Buscar por código..." aria-label="ID">
+        <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre…" aria-label="Nombre">
+        <select name="categoria" aria-label="Categoría">
+            <option value="">Todas las categorías</option>
+            {% for c in categorias %}
+                <option value="{{ c.id }}" {% if categoria_sel == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
             {% endfor %}
-        </div>
-    </section>
+        </select>
+        <select name="estado" aria-label="Disponibilidad">
+            <option value="">Toda disponibilidad</option>
+            {% for valor, etiqueta in estados %}
+                <option value="{{ valor }}" {% if estado_sel == valor %}selected{% endif %}>{{ etiqueta }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="{% url 'inventario' %}" class="btn btn-secondary">Limpiar</a>
+    </form>
+
+    <div class="toolbar">
+        <a href="{% url 'dispositivo_nuevo' %}" class="btn btn-primary">Añadir dispositivo</a>
+        <a href="{% url 'categoria_nueva' %}" class="btn btn-secondary">Añadir categoría</a>
+    </div>
+
+    <div class="space-y-3">
+        {% for d in dispositivos %}
+            <details class="record group">
+                <summary>
+                    <span class="font-mono text-sm font-bold text-teal-800">{{ d.codigo_inventario }}</span>
+                    <span class="min-w-0 flex-1 basis-full font-semibold text-slate-900 sm:basis-auto sm:truncate">{{ d.nombre }}</span>
+                    <span class="badge {{ d.estado }}">{{ d.get_estado_display }}</span>
+                    <span class="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-teal-800 sm:ml-0">
+                        <span class="when-closed">Ver más</span>
+                        <span class="when-open">Ver menos</span>
+                        <svg class="chevron h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+                    </span>
+                </summary>
+                <dl class="grid grid-cols-1 gap-4 border-t border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-2 sm:gap-x-8 sm:p-5">
+                    <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">ID de inventario</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ d.codigo_inventario }}</dd></div>
+                    <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Nombre</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ d.nombre }}</dd></div>
+                    <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Categoría</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ d.categoria.nombre|default:"Sin categoría" }}</dd></div>
+                    <div>
+                        <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Disponibilidad</dt>
+                        <dd class="mt-1"><span class="badge {{ d.estado }}">{{ d.get_estado_display }}</span></dd>
+                    </div>
+                    <div class="sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Especificaciones</dt><dd class="mt-1 text-sm leading-relaxed text-slate-800">{{ d.especificaciones|linebreaksbr }}</dd></div>
+                    <div class="sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Comentarios</dt><dd class="mt-1 text-sm leading-relaxed text-slate-800">{{ d.comentarios|default:"—"|linebreaksbr }}</dd></div>
+                    {% if d.foto %}
+                        <div class="sm:col-span-2">
+                            <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Foto</dt>
+                            <dd class="mt-2"><img src="{{ d.foto.url }}" alt="{{ d.nombre }}" class="max-w-[10rem] rounded-xl border border-slate-200"></dd>
+                        </div>
+                    {% endif %}
+                    <div class="actions sm:col-span-2">
+                        {% if d.estado != 'prestado' %}
+                            <a href="{% url 'dispositivo_editar' d.pk %}" class="btn btn-secondary">Editar dispositivo</a>
+                        {% endif %}
+                        {% if d.estado == 'prestado' %}
+                            <a href="{% url 'prestamos' %}?codigo_inventario={{ d.codigo_inventario }}" class="btn btn-primary">Dar seguimiento al préstamo</a>
+                        {% endif %}
+                    </div>
+                </dl>
+            </details>
+        {% empty %}
+            <div class="empty">No se encontraron dispositivos.</div>
+        {% endfor %}
+    </div>
+</section>
 {% endblock %}

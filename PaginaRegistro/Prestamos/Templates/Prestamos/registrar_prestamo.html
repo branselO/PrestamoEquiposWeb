@@ -2,183 +2,146 @@
 
 {% block title %}Registrar préstamo{% endblock %}
 
-{% block extra_css %}
-    .users-heading { margin-bottom: 1.5rem; }
-    .users-heading h1 { margin-bottom: .5rem; font-size: clamp(1.75rem, 4vw, 2.25rem); letter-spacing: -0.04em; }
-    .users-heading p { color: var(--text-muted); line-height: 1.6; }
-
-    .inv-filters { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.25rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
-    .inv-filters input, .inv-filters select { padding: .6rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font: inherit; background: #fff; }
-    .inv-filters input[type=search] { flex: 1 1 220px; }
-    .inv-filters input:focus, .inv-filters select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
-
-    .inv-btn { display: inline-block; padding: .65rem 1.2rem; border-radius: .6rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-main); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
-    .inv-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-    .inv-btn.primary:hover { background: var(--primary-hover); }
-    .inv-btn.cancel { background: var(--surface); border-color: var(--border); color: var(--text-main); }
-    .inv-btn.cancel:hover { background: var(--surface-hover); }
-    .inv-empty { padding: 2rem; text-align: center; color: var(--text-muted); background: var(--surface); border: 1px dashed var(--border); border-radius: .85rem; }
-    .prestamos-back { color: var(--primary); font-weight: 600; text-decoration: none; font-size: .9rem; }
-
-    .loan-register { padding: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
-    .loan-register fieldset { border: 0; padding: 0; min-width: 0; }
-    .loan-register legend { margin-bottom: .25rem; font-weight: 600; }
-    .loan-register p { margin-bottom: 1rem; color: var(--text-muted); line-height: 1.5; }
-    .loan-register-form { display: grid; gap: 1rem; }
-    .loan-register-form > label { display: grid; gap: .4rem; font-weight: 600; }
-    .loan-register-form input[type=email], .loan-register-form input[type=datetime-local], .loan-register-form input[type=password] { width: 100%; max-width: 34rem; padding: .65rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font: inherit; }
-    .device-options { display: grid; gap: .55rem; margin-top: .5rem; }
-    .device-option { display: flex; align-items: flex-start; gap: .65rem; padding: .7rem; border: 1px solid var(--border); border-radius: .6rem; }
-    .device-option input { margin-top: .25rem; }
-    .device-option span { line-height: 1.45; }
-    .loan-message { margin: 1rem 0; padding: .8rem 1rem; border-radius: .65rem; line-height: 1.5; }
-    .loan-message.error { background: #fee2e2; color: #991b1b; }
-    .loan-message.success { background: #d1fae5; color: #065f46; }
-    .loan-actions { display: flex; flex-wrap: wrap; gap: .7rem; }
-{% endblock %}
-
 {% block content %}
-    <section aria-labelledby="loan-register-title">
-        <header class="users-heading">
-            <h1 id="loan-register-title">Registrar préstamo</h1>
-            <p>Selecciona los dispositivos disponibles, valida al solicitante y confirma su identidad.</p>
-        </header>
+<section class="space-y-6" aria-labelledby="loan-register-title">
+    <header>
+        <p class="kicker">Operación</p>
+        <h1 id="loan-register-title" class="page-title">Registrar préstamo</h1>
+        <p class="page-lead">Selecciona los dispositivos disponibles, valida al solicitante y confirma su identidad.</p>
+    </header>
 
-        {% if registro_error %}
-            <div class="loan-message error" role="alert">{{ registro_error }}</div>
-        {% endif %}
-        {% if registro_exito %}
-            <div class="loan-message success" role="status">{{ registro_exito }}</div>
-        {% endif %}
+    {% if registro_error %}
+        <div class="loan-message error" role="alert">{{ registro_error }}</div>
+    {% endif %}
+    {% if registro_exito %}
+        <div class="loan-message success" role="status">{{ registro_exito }}</div>
+    {% endif %}
 
-        {% if registro_step == 'seleccion' %}
-            <form class="inv-filters" method="get" id="device-filters">
-                <input type="search" name="q" value="{{ q }}" placeholder="Filtrar por nombre…" aria-label="Nombre del dispositivo">
-                <select name="categoria" aria-label="Categoría">
-                    <option value="">Todas las categorías</option>
-                    {% for categoria in categorias %}
-                        <option value="{{ categoria.id }}" {% if categoria_sel == categoria.id|stringformat:"s" %}selected{% endif %}>{{ categoria.nombre }}</option>
-                    {% endfor %}
-                </select>
-                <button type="submit" class="inv-btn primary">Filtrar</button>
-                <a href="{% url 'registrar_prestamo' %}" class="inv-btn" id="clear-filters">Limpiar</a>
+    {% if registro_step == 'seleccion' %}
+        <form class="filters" method="get" id="device-filters">
+            <input type="search" name="q" value="{{ q }}" placeholder="Filtrar por nombre…" aria-label="Nombre del dispositivo">
+            <select name="categoria" aria-label="Categoría">
+                <option value="">Todas las categorías</option>
+                {% for categoria in categorias %}
+                    <option value="{{ categoria.id }}" {% if categoria_sel == categoria.id|stringformat:"s" %}selected{% endif %}>{{ categoria.nombre }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            <a href="{% url 'registrar_prestamo' %}" class="btn btn-secondary" id="clear-filters">Limpiar</a>
+        </form>
+    {% endif %}
+
+    <div class="panel p-5 sm:p-6">
+        {% if registro_step == 'identidad' %}
+            <p class="mb-4 text-sm leading-relaxed text-slate-600">
+                Solicitante: <strong class="text-slate-900">{{ solicitante.email }}</strong><br>
+                Dispositivos seleccionados:
+                {% for dispositivo in dispositivos_seleccionados %}
+                    {{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+            <form class="space-y-4" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="confirmar_identidad">
+                <label class="field-label" for="contrasena-solicitante">Contraseña del solicitante</label>
+                <input id="contrasena-solicitante" class="field" type="password" name="contrasena" autocomplete="current-password">
+                <div class="actions">
+                    <button type="submit" name="metodo_identidad" value="contrasena" class="btn btn-primary">Verificar con contraseña</button>
+                    <button type="submit" name="metodo_identidad" value="huella" class="btn btn-secondary" formnovalidate>Verificar con huella digital</button>
+                </div>
+            </form>
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="cancelar">
+                <button type="submit" class="btn btn-secondary">Cancelar registro</button>
+            </form>
+        {% elif registro_step == 'solicitante' %}
+            <p class="mb-4 text-sm leading-relaxed text-slate-600">
+                Dispositivos seleccionados:
+                {% for dispositivo in dispositivos_seleccionados %}
+                    {{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+            <form class="space-y-4" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="validar_solicitante">
+                <label class="field-label" for="correo-solicitante">Correo del solicitante</label>
+                <input id="correo-solicitante" class="field" type="email" name="correo" required autocomplete="email">
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">Verificar sanciones y continuar</button>
+                </div>
+            </form>
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="cancelar">
+                <button type="submit" class="btn btn-secondary">Cancelar registro</button>
+            </form>
+        {% else %}
+            <form class="space-y-5" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="seleccionar_dispositivos">
+                <div>
+                    <label class="field-label" for="fecha-devolucion">Fecha y hora de devolución esperada</label>
+                    <input id="fecha-devolucion" class="field max-w-md" type="datetime-local" name="fecha_devolucion_esperada" required>
+                </div>
+                {% if dispositivos_disponibles %}
+                    <fieldset class="min-w-0 border-0 p-0">
+                        <legend class="mb-3 text-sm font-semibold text-slate-800">Dispositivos disponibles</legend>
+                        <div class="grid gap-3">
+                            {% for dispositivo in dispositivos_disponibles %}
+                                <label class="device-option flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 hover:border-teal-300 hover:bg-white" data-name="{{ dispositivo.nombre|lower }}" data-category="{{ dispositivo.categoria_id|default_if_none:'' }}">
+                                    <input type="checkbox" class="mt-1 h-4 w-4 accent-teal-800" name="dispositivos" value="{{ dispositivo.pk }}">
+                                    <span class="text-sm leading-relaxed text-slate-700">
+                                        <strong class="text-slate-900">{{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}</strong>
+                                        {% if dispositivo.categoria %}<br>{{ dispositivo.categoria.nombre }}{% endif %}
+                                        <br>{{ dispositivo.especificaciones }}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+                {% else %}
+                    <div class="empty">No hay dispositivos disponibles que coincidan.</div>
+                {% endif %}
+                <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <a href="{% url 'prestamos' %}" class="btn btn-secondary w-full sm:w-auto">Cancelar</a>
+                    <button type="submit" class="btn btn-primary w-full sm:w-auto">Continuar a datos del solicitante</button>
+                </div>
             </form>
         {% endif %}
+    </div>
+</section>
 
-        <div class="loan-register">
-            {% if registro_step == 'identidad' %}
-                <p>
-                    Solicitante: <strong>{{ solicitante.email }}</strong><br>
-                    Dispositivos seleccionados:
-                    {% for dispositivo in dispositivos_seleccionados %}
-                        {{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
-                </p>
-                <form class="loan-register-form" method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="accion" value="confirmar_identidad">
-                    <label for="contrasena-solicitante">Contraseña del solicitante</label>
-                    <input id="contrasena-solicitante" type="password" name="contrasena" autocomplete="current-password">
-                    <div class="loan-actions">
-                        <button type="submit" name="metodo_identidad" value="contrasena" class="inv-btn primary">Verificar con contraseña</button>
-                        <button type="submit" name="metodo_identidad" value="huella" class="inv-btn" formnovalidate>Verificar con huella digital</button>
-                    </div>
-                </form>
-                <form method="post" style="margin-top:.75rem">
-                    {% csrf_token %}
-                    <input type="hidden" name="accion" value="cancelar">
-                    <button type="submit" class="inv-btn">Cancelar registro</button>
-                </form>
-            {% elif registro_step == 'solicitante' %}
-                <p>
-                    Dispositivos seleccionados:
-                    {% for dispositivo in dispositivos_seleccionados %}
-                        {{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
-                </p>
-                <form class="loan-register-form" method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="accion" value="validar_solicitante">
-                    <label for="correo-solicitante">
-                        Correo del solicitante
-                        <input id="correo-solicitante" type="email" name="correo" required autocomplete="email">
-                    </label>
-                    <div class="loan-actions">
-                        <button type="submit" class="inv-btn primary">Verificar sanciones y continuar</button>
-                    </div>
-                </form>
-                <form method="post" style="margin-top:.75rem">
-                    {% csrf_token %}
-                    <input type="hidden" name="accion" value="cancelar">
-                    <button type="submit" class="inv-btn">Cancelar registro</button>
-                </form>
-            {% else %}
-                <form class="loan-register-form" method="post">
-                    {% csrf_token %}
-                    <label for="fecha-devolucion">
-                        Fecha y hora de devolución esperada
-                        <input id="fecha-devolucion" type="datetime-local" name="fecha_devolucion_esperada" required>
-                    </label>
-                    <div style="display: flex; gap: .5rem; align-items: center;"> 
-                        <a href="{% url 'prestamos' %}" class="inv-btn cancel">Cancelar</a>
-                    <button type="submit" class="inv-btn primary">Continuar a datos del solicitante</button>
-                    </div>
-                    <input type="hidden" name="accion" value="seleccionar_dispositivos">
+<script>
+    (function () {
+        const form = document.getElementById('device-filters');
+        if (!form) return;
+        const q = form.elements['q'];
+        const categoria = form.elements['categoria'];
+        const options = document.querySelectorAll('.device-option');
 
-                    {% if dispositivos_disponibles %}
-                        <fieldset>
-                            <legend>Dispositivos disponibles</legend>
-                            <div class="device-options">
-                                {% for dispositivo in dispositivos_disponibles %}
-                                    <label class="device-option" data-name="{{ dispositivo.nombre|lower }}" data-category="{{ dispositivo.categoria_id|default_if_none:'' }}">
-                                        <input type="checkbox" name="dispositivos" value="{{ dispositivo.pk }}">
-                                        <span>
-                                            <strong>{{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}</strong>
-                                            {% if dispositivo.categoria %}<br>{{ dispositivo.categoria.nombre }}{% endif %}
-                                            <br>{{ dispositivo.especificaciones }}
-                                        </span>
-                                    </label>
-                                {% endfor %}
-                            </div>
-                        </fieldset>
-                    {% else %}
-                        <div class="inv-empty">No hay dispositivos disponibles que coincidan.</div>
-                    {% endif %}
-                </form>
-            {% endif %}
-        </div>
-    </section>
-
-    <script>
-        (function () {
-            const form = document.getElementById('device-filters');
-            if (!form) return;
-            const q = form.elements['q'];
-            const categoria = form.elements['categoria'];
-            const options = document.querySelectorAll('.device-option');
-
-            function aplicar() {
-                const texto = q.value.trim().toLowerCase();
-                options.forEach(function (option) {
-                    const coincideNombre = !texto || option.dataset.name.includes(texto);
-                    const coincideCategoria = !categoria.value || option.dataset.category === categoria.value;
-                    option.style.display = coincideNombre && coincideCategoria ? '' : 'none';
-                });
-            }
-
-            form.addEventListener('submit', function (event) {
-                event.preventDefault();
-                aplicar();
+        function aplicar() {
+            const texto = q.value.trim().toLowerCase();
+            options.forEach(function (option) {
+                const coincideNombre = !texto || option.dataset.name.includes(texto);
+                const coincideCategoria = !categoria.value || option.dataset.category === categoria.value;
+                option.classList.toggle('hidden', !(coincideNombre && coincideCategoria));
             });
-            document.getElementById('clear-filters').addEventListener('click', function (event) {
-                event.preventDefault();
-                q.value = '';
-                categoria.value = '';
-                aplicar();
-            });
-            q.addEventListener('input', aplicar);
-            categoria.addEventListener('change', aplicar);
+        }
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
             aplicar();
-        })();
-    </script>
+        });
+        document.getElementById('clear-filters').addEventListener('click', function (event) {
+            event.preventDefault();
+            q.value = '';
+            categoria.value = '';
+            aplicar();
+        });
+        q.addEventListener('input', aplicar);
+        categoria.addEventListener('change', aplicar);
+        aplicar();
+    })();
+</script>
 {% endblock %}

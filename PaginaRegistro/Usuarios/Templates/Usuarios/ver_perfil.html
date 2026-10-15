@@ -2,107 +2,83 @@
 
 {% block title %}Perfil de {{ perfil.nombre }}{% endblock %}
 
-{% block extra_css %}
-    .profile-page { max-width: 56rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; }
-    .profile-back { color: var(--primary); font-weight: 600; text-decoration: none; font-size: .9rem; }
-    .profile-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 6px 18px rgba(31,41,55,.05); }
-    .profile-header { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
-    .profile-avatar { display: grid; place-items: center; width: 4.5rem; height: 4.5rem; border-radius: 50%; background: #eef2ff; color: var(--primary); font-size: 1.5rem; font-weight: 700; text-transform: uppercase; }
-    .profile-header h1 { font-size: clamp(1.4rem, 3vw, 1.9rem); letter-spacing: -0.03em; margin-bottom: .25rem; }
-    .profile-header p { color: var(--text-muted); overflow-wrap: anywhere; }
-    .profile-status { margin-left: auto; padding: .35rem .9rem; border-radius: 999px; font-size: .85rem; font-weight: 700; background: #d1fae5; color: #065f46; }
-    .profile-status.sancionado { background: #fee2e2; color: #991b1b; }
-    .profile-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem 1.5rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
-    .profile-info dt { color: var(--text-muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
-    .profile-info dd { margin: .15rem 0 0; }
-    .profile-card h2 { font-size: 1.15rem; margin-bottom: 1rem; }
-    .profile-alert { background: #fef2f2; border: 1px solid #fecaca; }
-    .profile-alert h2 { color: #991b1b; }
-    .profile-list { list-style: none; display: flex; flex-direction: column; gap: .75rem; padding: 0; margin: 0; }
-    .profile-list li { padding: .85rem 1rem; border: 1px solid var(--border); border-radius: .75rem; background: #fafafa; }
-    .profile-list ul { margin: .5rem 0 0 1.1rem; color: var(--text-muted); font-size: .9rem; }
-    .profile-muted { color: var(--text-muted); }
-    .profile-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
-    .profile-btn { display: inline-block; padding: .65rem 1.2rem; border-radius: .6rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-main); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
-    .profile-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-    .profile-btn.primary:hover { background: var(--primary-hover); }
-    .profile-btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
-    .profile-btn.danger:hover { background: var(--danger-hover); }
-{% endblock %}
-
 {% block content %}
-    <section class="profile-page">
-        <a class="profile-back" href="{% url 'admin_usuarios' %}">← Volver a usuarios</a>
+<section class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+    <a class="inline-flex w-fit items-center gap-1 text-sm font-semibold text-teal-800 transition-all duration-300 hover:gap-2 hover:text-teal-950 focus-visible:rounded-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-800/15" href="{% url 'admin_usuarios' %}">← Volver a usuarios</a>
 
-        <div class="profile-card">
-            <div class="profile-header">
-                <span class="profile-avatar" aria-hidden="true">{{ perfil.nombre|first }}{{ perfil.apellidos|first }}</span>
-                <div>
-                    <h1>{{ perfil.nombre }} {{ perfil.apellidos }}</h1>
-                    <p>{{ perfil.email }}</p>
-                </div>
-                {% if perfil.tiene_sancion_activa %}
-                    <span class="profile-status sancionado">Sancionado</span>
-                {% else %}
-                    <span class="profile-status">Sin sanciones</span>
-                {% endif %}
+    <article class="panel p-5 sm:p-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <span class="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-teal-50 text-xl font-bold uppercase text-teal-800" aria-hidden="true">{{ perfil.nombre|first }}{{ perfil.apellidos|first }}</span>
+            <div class="min-w-0">
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{{ perfil.nombre }} {{ perfil.apellidos }}</h1>
+                <p class="mt-1 break-all text-sm text-slate-600">{{ perfil.email }}</p>
             </div>
-            <dl class="profile-info">
-                <div><dt>Número de cuenta</dt><dd>{{ perfil.numero_cuenta|default:"—" }}</dd></div>
-                <div><dt>Número de trabajador</dt><dd>{{ perfil.numero_trabajador|default:"—" }}</dd></div>
-                <div><dt>RFC</dt><dd>{{ perfil.rfc|default:"—" }}</dd></div>
-                <div><dt>CURP</dt><dd>{{ perfil.curp|default:"—" }}</dd></div>
-                <div><dt>Género</dt><dd>{{ perfil.get_genero_display|default:"—" }}</dd></div>
-                <div><dt>Dirección completa</dt><dd>{{ perfil.direccion|default:"—" }}</dd></div>
-                <div><dt>Teléfono celular</dt><dd>{{ perfil.telefono_celular|default:"—" }}</dd></div>
-                <div><dt>Entidad académica</dt><dd>{{ perfil.entidad_academica|default:"—" }}</dd></div>
-                <div><dt>Programa académico</dt><dd>{{ perfil.programa|default:"—" }}</dd></div>
-                <div><dt>Fecha de registro</dt><dd>{{ perfil.fecha_registro|date:"d/m/Y H:i"|default:"—" }}</dd></div>
-                <div><dt>Tipo</dt><dd>{% if perfil.is_staff %}Staff{% else %}Usuario normal{% endif %}</dd></div>
-            </dl>
+            {% if perfil.tiene_sancion_activa %}
+                <span class="badge badge-bad sm:ml-auto">Sancionado</span>
+            {% else %}
+                <span class="badge badge-ok sm:ml-auto">Sin sanciones</span>
+            {% endif %}
         </div>
+        <dl class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Número de cuenta</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.numero_cuenta|default:"—" }}</dd></div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Número de trabajador</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.numero_trabajador|default:"—" }}</dd></div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">RFC</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.rfc|default:"—" }}</dd></div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">CURP</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.curp|default:"—" }}</dd></div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Género</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.get_genero_display|default:"—" }}</dd></div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Dirección completa</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.direccion|default:"—" }}</dd></div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Teléfono celular</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.telefono_celular|default:"—" }}</dd></div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Entidad académica</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.entidad_academica|default:"—" }}</dd></div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Programa académico</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.programa|default:"—" }}</dd></div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Fecha de registro</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.fecha_registro|date:"d/m/Y H:i"|default:"—" }}</dd></div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3 sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Tipo</dt><dd class="mt-1 text-sm font-medium text-slate-900">{% if perfil.is_staff %}Staff{% else %}Usuario normal{% endif %}</dd></div>
+        </dl>
+    </article>
 
-        {% if perfil.tiene_sancion_activa %}
-            <div class="profile-card profile-alert">
-                <h2>Usuario sancionado</h2>
-                <ul class="profile-list">
-                    {% for sancion in perfil.sanciones_activas %}
-                        <li><strong>{{ sancion.get_tipo_sancion_display }}</strong><br>
-                            <span class="profile-muted">{{ sancion.observaciones }}</span></li>
+    {% if perfil.tiene_sancion_activa %}
+        <article class="rounded-2xl border border-red-200 bg-red-50 p-5 sm:p-6">
+            <h2 class="text-lg font-semibold text-red-800">Usuario sancionado</h2>
+            <ul class="mt-4 space-y-3">
+                {% for sancion in perfil.sanciones_activas %}
+                    <li class="rounded-xl border border-red-100 bg-white px-4 py-3 text-sm">
+                        <strong class="text-slate-900">{{ sancion.get_tipo_sancion_display }}</strong>
+                        <span class="mt-1 block text-slate-600">{{ sancion.observaciones }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div class="actions mt-5">
+                <a class="btn btn-danger" href="{% url 'sanciones' %}?usuario={{ perfil.id }}">Ver sanción</a>
+            </div>
+        </article>
+    {% else %}
+        <p class="text-sm text-slate-600">Usuario sin sanciones. Puede solicitar préstamos.</p>
+    {% endif %}
+
+    <article class="panel p-5 sm:p-6">
+        <h2 class="text-lg font-semibold tracking-tight">Equipos que no ha devuelto</h2>
+        {% with pendientes=perfil.prestamos_pendientes %}
+            {% if pendientes %}
+                <ul class="mt-4 space-y-3">
+                    {% for prestamo in pendientes %}
+                        <li class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                            Ticket #{{ prestamo.id }}
+                            <span class="text-slate-500">(Solicitado el {{ prestamo.fecha_salida|date:"d/m/Y" }})</span>
+                            <ul class="mt-2 list-disc space-y-1 pl-5 text-slate-700">
+                                {% for articulo in prestamo.detalles.all %}
+                                    {% if not articulo.fecha_devuelto %}
+                                        <li>{{ articulo.dispositivo.nombre }} ({{ articulo.dispositivo.codigo_inventario }})</li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                        </li>
                     {% endfor %}
                 </ul>
-                <div class="profile-actions">
-                    <a class="profile-btn danger" href="{% url 'sanciones' %}?usuario={{ perfil.id }}">Ver sanción</a>
+                <div class="actions mt-5">
+                    <a class="btn btn-primary" href="{% url 'prestamos' %}?usuario={{ perfil.id }}">Seguimiento del préstamo</a>
                 </div>
-            </div>
-        {% else %}
-            <p class="profile-muted">Usuario sin sansiones. Puede solicitar préstamos.</p>
-        {% endif %}
-
-        <div class="profile-card">
-            <h2>Equipos que no ha devuelto</h2>
-            {% with pendientes=perfil.prestamos_pendientes %}
-                {% if pendientes %}
-                    <ul class="profile-list">
-                        {% for prestamo in pendientes %}
-                            <li>Ticket #{{ prestamo.id }} <span class="profile-muted">(Solicitado el {{ prestamo.fecha_salida|date:"d/m/Y" }})</span>
-                                <ul>
-                                    {% for articulo in prestamo.detalles.all %}
-                                        {% if not articulo.fecha_devuelto %}
-                                            <li>{{ articulo.dispositivo.nombre }} ({{ articulo.dispositivo.codigo_inventario }})</li>
-                                        {% endif %}
-                                    {% endfor %}
-                                </ul>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                    <div class="profile-actions">
-                        <a class="profile-btn primary" href="{% url 'prestamos' %}?usuario={{ perfil.id }}">Seguimiento del préstamo</a>
-                    </div>
-                {% else %}
-                    <p class="profile-muted">No tiene equipos pendientes por devolver.</p>
-                {% endif %}
-            {% endwith %}
-        </div>
-    </section>
+            {% else %}
+                <p class="mt-3 text-sm text-slate-600">No tiene equipos pendientes por devolver.</p>
+            {% endif %}
+        {% endwith %}
+    </article>
+</section>
 {% endblock %}

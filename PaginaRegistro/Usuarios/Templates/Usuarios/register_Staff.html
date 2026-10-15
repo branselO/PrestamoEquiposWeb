@@ -1,154 +1,48 @@
 {% extends 'Usuarios/base.html' %}
 {% load static %}
 
-{% block title %}Registrar Personal Staff{% endblock %}
-
-{% block extra_css %}
-<style>
-    .form-container {
-        max-width: 500px;
-        margin: 0 auto;
-        padding: 2rem 0;
-    }
-
-    .page-header {
-        margin-bottom: 2rem;
-    }
-
-    .page-header h2 {
-        color: var(--text-main);
-        font-size: 1.75rem;
-        margin-bottom: 0.5rem;
-        font-weight: 700;
-    }
-
-    .page-header p {
-        color: var(--text-muted);
-        font-size: 0.95rem;
-    }
-
-    form p {
-        margin-bottom: 1.25rem;
-    }
-
-    form p label {
-        display: block;
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--text-main);
-        margin-bottom: 0.5rem;
-    }
-
-    form p input:not([type="checkbox"]),
-    form p select,
-    form p textarea {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border: 1px solid var(--border);
-        border-radius: 0.5rem;
-        font-size: 1rem;
-        color: var(--text-main);
-        transition: all 0.2s ease;
-        background-color: var(--surface);
-    }
-
-    form p input:not([type="checkbox"]):focus,
-    form p select:focus,
-    form p textarea:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 4px var(--focus-ring);
-    }
-
-    form p textarea {
-        min-height: 6rem;
-        resize: vertical;
-    }
-
-    form p input[type="checkbox"] {
-        width: 1rem;
-        height: 1rem;
-        accent-color: var(--primary);
-        cursor: pointer;
-        vertical-align: middle;
-        margin-right: 0.5rem;
-    }
-
-    .helptext {
-        font-size: 0.8rem;
-        color: var(--text-muted);
-        margin-top: 0.3rem;
-        display: block;
-    }
-
-    ul.errorlist {
-        color: #dc2626;
-        background-color: #fee2e2;
-        padding: 0.75rem;
-        border-radius: 0.5rem;
-        list-style: none;
-        font-size: 0.85rem;
-        margin-bottom: 1.25rem;
-    }
-
-    .form-container button[type="submit"] {
-        width: 100%;
-        background-color: var(--primary);
-        color: white;
-        padding: 0.875rem;
-        border: none;
-        border-radius: 0.5rem;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background-color 0.2s ease, transform 0.1s ease;
-        margin-top: 1rem;
-    }
-
-    .form-container button[type="submit"]:hover {
-        background-color: var(--primary-hover);
-    }
-
-    .form-container button[type="submit"]:active {
-        transform: scale(0.98);
-    }
-
-    .auth-footer {
-        margin-top: 1.5rem;
-        color: var(--text-muted);
-        font-size: 0.875rem;
-        text-align: center;
-    }
-
-    .auth-footer a {
-        color: var(--primary);
-        font-weight: 600;
-        text-decoration: none;
-    }
-
-    .auth-footer a:hover {
-        color: var(--primary-hover);
-        text-decoration: underline;
-    }
-</style>
-{% endblock %}
+{% block title %}Registrar personal staff{% endblock %}
 
 {% block content %}
-    <div class="form-container">
-        <div class="page-header">
-            <h2>Registrar personal staff</h2>
-            <p>Crea una cuenta de personal administrativo.</p>
-        </div>
-
-        <form method="post" data-programs-url="{% url 'programas_por_entidad' %}">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit">Crear cuenta staff</button>
-        </form>
-
-        <div class="auth-footer">
-            ¿Ya tienes una cuenta? <a href="{% url 'login' %}">Inicia sesión aquí</a>
+{% if not user.is_authenticated %}
+<div class="grid min-h-screen lg:grid-cols-2">
+    {% include 'Usuarios/_auth_aside.html' %}
+    <div class="flex items-center justify-center px-4 py-10 sm:px-8">
+        <div class="auth-card max-w-lg">
+            <div class="mb-6 flex items-center gap-3 lg:hidden">
+                <span class="brand-mark">PE</span>
+                <span class="text-sm font-bold tracking-tight">Préstamo de equipos</span>
+            </div>
+            <header class="mb-6">
+                <p class="kicker">Alta</p>
+                <h2 class="page-title">Registrar personal staff</h2>
+                <p class="page-lead">Crea una cuenta de personal administrativo.</p>
+            </header>
+            <form class="form-stack" method="post" data-programs-url="{% url 'programas_por_entidad' %}">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-primary btn-block">Crear cuenta staff</button>
+            </form>
+            <p class="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+                ¿Ya tienes una cuenta?
+                <a href="{% url 'login' %}" class="font-semibold text-teal-800 underline-offset-4 transition-all duration-300 hover:text-teal-950 hover:underline dark:text-teal-300 dark:hover:text-teal-200">Inicia sesión aquí</a>
+            </p>
         </div>
     </div>
-    <script src="{% static 'Usuarios/js/programas_por_entidad.js' %}" defer></script>
+</div>
+{% else %}
+<section class="mx-auto w-full max-w-xl">
+    <header class="mb-6">
+        <p class="kicker">Alta</p>
+        <h1 class="page-title">Registrar personal staff</h1>
+        <p class="page-lead">Crea una cuenta de personal administrativo.</p>
+    </header>
+    <form class="form-stack panel p-5 sm:p-6" method="post" data-programs-url="{% url 'programas_por_entidad' %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary btn-block">Crear cuenta staff</button>
+    </form>
+</section>
+{% endif %}
+<script src="{% static 'Usuarios/js/programas_por_entidad.js' %}" defer></script>
 {% endblock %}

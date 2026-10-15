@@ -1,175 +1,64 @@
 {% extends 'Usuarios/base.html' %}
 {% load static %}
 
-{% block title %}Panel de Inicio - Staff{% endblock %}
-
-{% block extra_css %}
-<style>
-    .dashboard-card {
-        background-color: var(--surface);
-        padding: 2.5rem;
-        border-radius: 1rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    }
-    .dashboard-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    .dashboard-header h2 { font-size: 1.75rem; margin-bottom: 0.5rem; color: var(--text-main); }
-    .welcome-info { min-width: 0; }
-    .badge-staff {
-        display: inline-block; background-color: #e0e7ff; color: #3730a3;
-        padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 1.0rem; font-weight: 600;
-    }
-    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
-    
-    .actions-section h3 { 
-        font-size: 1.25rem; 
-        margin-bottom: 1.5rem; 
-        color: var(--text-main); 
-    }
-
-    /* --- Grid de Tarjetas (Imágenes) --- */
-    .actions-grid {
-        display: grid;
-        /* auto-fit y minmax hacen que las tarjetas se adapten automáticamente al tamaño de la pantalla */
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 1.5rem;
-    }
-
-    /* Toda la tarjeta funciona como un enlace */
-    .action-card {
-        display: flex;
-        flex-direction: column;
-        background-color: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 0.75rem;
-        overflow: hidden; /* Evita que las esquinas de la imagen se salgan del borde redondeado */
-        text-decoration: none;
-        color: var(--text-main);
-        transition: all 0.2s ease;
-    }
-
-    /* Efecto al pasar el mouse sobre cualquier parte de la tarjeta */
-    .action-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        border-color: var(--primary);
-    }
-
-    /* Contenedor de la imagen */
-    .action-image {
-        width: 100%;
-        height: 140px;
-        object-fit: cover; /* Asegura que la imagen llene el espacio sin deformarse */
-        background-color: var(--bg);
-        border-bottom: 1px solid var(--border);
-    }
-
-    /* Contenedor del texto debajo de la imagen */
-    .action-info {
-        padding: 1.25rem;
-        text-align: center;
-    }
-
-    .action-info h4 {
-        font-size: 1.05rem;
-        font-weight: 600;
-        margin-bottom: 0.25rem;
-        color: var(--text-main);
-    }
-
-    .action-info p {
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        margin: 0;
-    }
-    .profile-image {
-        width: 7.5rem;
-        height: 7.5rem;
-        flex: 0 0 auto;
-        object-fit: cover;
-        border-radius: 50%;
-        border: 5px solid var(--border);
-        margin-right: 60px;
-    }
-
-    @media (max-width: 480px) {
-        .dashboard-card { padding: 1.5rem; }
-        .dashboard-header h2 { font-size: 1.35rem; }
-        .profile-image { width: 3.5rem; height: 3.5rem; }
-    }
-
-</style>
-{% endblock %}
+{% block title %}Inicio — Préstamo de equipos{% endblock %}
 
 {% block content %}
-<div class="dashboard-card">
-    <div class="dashboard-header">
-        <div class="welcome-info">
-            <h2>Bienvenido, {{ user.nombre }} {{ user.apellidos }}</h2>
-            <span class="badge-staff">Staff Administrativo</span>
-        </div>
-        <img src="{% static 'Usuarios/profile.jpg' %}" alt="Imagen de perfil" class="profile-image">
-    </div>
-    
-    <hr>
-    
-    <div class="actions-section">
-        <h3>Acciones rápidas</h3>
-        
-        <div class="actions-grid">
-            
-            <!-- Tarjeta 1: Administrar Usuarios -->
-            <a href="{% url 'admin_usuarios' %}" class="action-card">
-                <img src="{% static 'Usuarios/admin_usuarios.jpg' %}" alt="Administrar Usuarios" class="action-image">
-                <div class="action-info">
-                    <h4>Administrar usuarios</h4>
-                    <p>Ver y editar registros</p>
-                </div>
-            </a>
-
-            <!-- Tarjeta 2: Crear Usuario -->
-            <a href="{% url 'register_Normal' %}" class="action-card">
-
-                <img src="{% static 'Usuarios/usuarios.jpg' %}" alt="Crear Usuario" class="action-image">
-                <div class="action-info">
-                    <h4>Registrar usuario</h4>
-                    <p>Registrar una cuenta normal</p>
-                </div>
-            </a>
-
-
-            <!-- Tarjeta 3: Administrar Dispositivos -->
-            <a href="{% url 'inventario' %}" class="action-card">
-                <img src="{% static 'Usuarios/dispositivos.png' %}" alt="Administrar Dispositivos" class="action-image">
-                <div class="action-info">
-                    <h4>Administrar dispositivos</h4>
-                    <p>Gestión de inventario</p>
-                </div>
-            </a>
-
-            <!-- Tarjeta 4: Administrar Préstamos -->
-            <a href="{% url 'prestamos' %}" class="action-card">
-                <img src="{% static 'Usuarios/prestamos.jpg' %}" alt="Administrar Préstamos" class="action-image">
-                <div class="action-info">
-                    <h4>Administrar préstamos</h4>
-                    <p>Control de asignaciones</p>
-                </div>
-            </a>
-
-            <a href="{% url 'sanciones' %}" class="action-card">
-                <img src="{% static 'Usuarios/sansiones.jpg' %}" alt="Administrar Sanciones" class="action-image">
-                <div class="action-info">
-                    <h4>Administrar sanciones</h4>
-                    <p>Control de sanciones</p>
-                </div>
-            </a>
-
+<section class="space-y-8">
+    <div class="overflow-hidden rounded-3xl bg-gradient-to-br from-teal-800 via-teal-900 to-slate-900 p-6 text-white shadow-lg shadow-teal-950/20 sm:p-8">
+        <div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-[0.16em] text-teal-100">Inicio</p>
+                <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Bienvenido, {{ user.nombre }} {{ user.apellidos }}</h1>
+                <p class="mt-3 max-w-xl text-base leading-relaxed text-teal-50">Gestiona usuarios, inventario, préstamos y sanciones desde un solo panel.</p>
+                <span class="mt-5 inline-flex rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">Staff administrativo</span>
+            </div>
+            <div class="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-white/15 text-2xl font-bold uppercase ring-4 ring-white/25" aria-hidden="true">
+                {{ user.nombre|first }}{{ user.apellidos|first }}
+            </div>
         </div>
     </div>
-</div>
+
+    <div>
+        <h2 class="text-lg font-semibold tracking-tight text-slate-900">Acciones rápidas</h2>
+        <p class="mt-1 text-sm text-slate-600">Elige el módulo con el que quieres trabajar.</p>
+        <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <a href="{% url 'admin_usuarios' %}" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-800/20">
+                <span class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-teal-800 transition-all duration-300 group-hover:bg-teal-800 group-hover:text-white">
+                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM20 19v-1a3.5 3.5 0 0 0-2.6-3.4M16.5 5.2a3 3 0 0 1 0 5.6"/></svg>
+                </span>
+                <h3 class="text-base font-semibold text-slate-900">Administrar usuarios</h3>
+                <p class="mt-1 text-sm leading-relaxed text-slate-600">Consultar y revisar registros</p>
+            </a>
+            <a href="{% url 'register_Normal' %}" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-800/20">
+                <span class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 transition-all duration-300 group-hover:bg-emerald-800 group-hover:text-white">
+                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19 8v6M16 11h6"/></svg>
+                </span>
+                <h3 class="text-base font-semibold text-slate-900">Registrar usuario</h3>
+                <p class="mt-1 text-sm leading-relaxed text-slate-600">Crear una cuenta estándar</p>
+            </a>
+            <a href="{% url 'inventario' %}" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-sky-200 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-800/20">
+                <span class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-800 transition-all duration-300 group-hover:bg-sky-800 group-hover:text-white">
+                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h10"/><rect x="3" y="4" width="18" height="16" rx="2"/></svg>
+                </span>
+                <h3 class="text-base font-semibold text-slate-900">Inventario</h3>
+                <p class="mt-1 text-sm leading-relaxed text-slate-600">Gestión de dispositivos</p>
+            </a>
+            <a href="{% url 'prestamos' %}" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-amber-200 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-800/20">
+                <span class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-800 transition-all duration-300 group-hover:bg-amber-700 group-hover:text-white">
+                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M4 9h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9Z"/><path stroke-linecap="round" d="M9 14h6"/></svg>
+                </span>
+                <h3 class="text-base font-semibold text-slate-900">Préstamos</h3>
+                <p class="mt-1 text-sm leading-relaxed text-slate-600">Control de asignaciones</p>
+            </a>
+            <a href="{% url 'sanciones' %}" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-rose-200 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-800/20">
+                <span class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-800 transition-all duration-300 group-hover:bg-rose-800 group-hover:text-white">
+                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4M12 17h.01M10.3 4.8 2.7 18a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 4.8a2 2 0 0 0-3.4 0Z"/></svg>
+                </span>
+                <h3 class="text-base font-semibold text-slate-900">Sanciones</h3>
+                <p class="mt-1 text-sm leading-relaxed text-slate-600">Seguimiento de incidencias</p>
+            </a>
+        </div>
+    </div>
+</section>
 {% endblock %}

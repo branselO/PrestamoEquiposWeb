@@ -1,260 +1,66 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verificación Biométrica</title>
-    <style>
-        :root {
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --bg: #f3f4f6;
-            --surface: #ffffff;
-            --text-main: #1f2937;
-            --text-muted: #6b7280;
-            --border: #e5e7eb;
-            
-            /* Colores de estado (Alertas) */
-            --info-bg: #eff6ff;
-            --info-text: #1d4ed8;
-            --info-border: #bfdbfe;
-            
-            --success-bg: #f0fdf4;
-            --success-text: #15803d;
-            --success-border: #bbf7d0;
-            
-            --error-bg: #fef2f2;
-            --error-text: #b91c1c;
-            --error-border: #fecaca;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: system-ui, -apple-system, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 1.5rem;
-        }
-
-        .auth-card {
-            background-color: var(--surface);
-            padding: 2.5rem;
-            border-radius: 1rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            width: 100%;
-            max-width: 420px;
-            text-align: center; /* Centramos el contenido por ser una pantalla de verificación */
-        }
-
-        .auth-header {
-            margin-bottom: 2rem;
-        }
-
-        .auth-header h2 {
-            color: var(--text-main);
-            font-size: 1.5rem;
-            margin-bottom: 0.75rem;
-            font-weight: 700;
-        }
-
-        .auth-header p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            line-height: 1.5;
-        }
-
-        .auth-header strong {
-            color: var(--text-main);
-            font-weight: 600;
-        }
-
-        /* Botón de verificación */
-        .btn-verify {
-            width: 100%;
-            background-color: var(--primary);
-            color: white;
-            padding: 0.875rem;
-            border: none;
-            border-radius: 0.5rem;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-
-        .btn-verify:hover:not(:disabled) {
-            background-color: var(--primary-hover);
-        }
-
-        .btn-verify:active:not(:disabled) {
-            transform: scale(0.98);
-        }
-
-        .btn-verify:disabled {
-            background-color: var(--text-muted);
-            cursor: not-allowed;
-            opacity: 0.8;
-        }
-
-        .btn-secondary {
-            width: 100%;
-            margin-top: 1rem;
-            padding: 0.75rem;
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            background: white;
-            color: var(--primary);
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .password-form {
-            margin-top: 1rem;
-            text-align: left;
-        }
-
-        .password-form label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: var(--text-main);
-            font-weight: 600;
-        }
-
-        .password-form input {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            font-size: 1rem;
-        }
-
-        /* Icono SVG para el botón */
-        .btn-verify svg {
-            width: 1.25rem;
-            height: 1.25rem;
-            fill: none;
-            stroke: currentColor;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-        /* Cajas de estado */
-        .status-box {
-            margin-top: 1.5rem;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-            text-align: left;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .info {
-            background-color: var(--info-bg);
-            color: var(--info-text);
-            border: 1px solid var(--info-border);
-        }
-
-        .success {
-            background-color: var(--success-bg);
-            color: var(--success-text);
-            border: 1px solid var(--success-border);
-        }
-
-        .error {
-            background-color: var(--error-bg);
-            color: var(--error-text);
-            border: 1px solid var(--error-border);
-        }
-        .auth-back-link {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: 600;
-            transition: color 0.2s;
-        }
-
-        .auth-back-link:hover {
-            color: var(--primary-hover);
-            text-decoration: underline;
-        }
-    </style>
+    <title>Verificación biométrica</title>
+    {% include 'Usuarios/_assets.html' %}
 </head>
-<body>
-
-    <div class="auth-card">
-        <a href="{% url 'login' %}" class="auth-back-link">← Regresar</a>
-        <div class="auth-header">
-            <h2>Autenticación Multi-Factor</h2>
-            <p>Hola <strong>{{ usuario.nombre }}</strong>, por favor verifique su identidad.</p>
+<body class="flex min-h-screen items-center justify-center bg-slate-100 bg-[radial-gradient(ellipse_at_top,rgba(15,118,110,0.18),transparent_55%)] px-4 py-10 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+    {% include 'Usuarios/_theme_toggle.html' with theme_toggle_class='fixed left-4 top-4 z-40' %}
+    <div class="auth-card relative max-w-md">
+        <a href="{% url 'login' %}" class="absolute right-5 top-5 text-sm font-semibold text-teal-800 transition-all duration-300 hover:text-teal-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-800/15 dark:text-teal-300 dark:hover:text-teal-200">← Regresar</a>
+        <div class="mb-6 flex justify-center pt-4">
+            <span class="brand-mark">PE</span>
         </div>
+        <header class="mb-6 text-center">
+            <h2 class="text-2xl font-bold tracking-tight">Autenticación en dos pasos</h2>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">Hola <strong class="text-slate-900 dark:text-slate-100">{{ usuario.nombre }}</strong>, confirma tu identidad para entrar.</p>
+        </header>
 
         {% csrf_token %}
-        
-        <button id="btn-verify" class="btn-verify" onclick="verificarHuella()">
-            <!-- Icono de huella digital SVG -->
-            <svg viewBox="0 0 24 24">
-                <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path>
+
+        <button id="btn-verify" type="button" class="btn btn-primary btn-block" onclick="verificarHuella()">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"></circle>
                 <path d="M12 8v4"></path>
                 <path d="M12 16h.01"></path>
             </svg>
-            <span id="btn-text">Escanear Huella</span>
+            <span id="btn-text">Escanear huella</span>
         </button>
 
-        <button id="btn-show-password" class="btn-secondary" type="button" onclick="mostrarContrasena()">
+        <button id="btn-show-password" class="btn btn-secondary btn-block mt-3" type="button" onclick="mostrarContrasena()">
             Usar contraseña en su lugar
         </button>
 
-        <form id="password-form" class="password-form" style="display: none;">
+        <form id="password-form" class="mt-4 hidden space-y-3 text-left" method="post">
             {% csrf_token %}
             <input type="hidden" name="auth_method" value="password">
-            <label for="password">Contraseña</label>
-            <input id="password" name="password" type="password" autocomplete="current-password" required>
-            <button class="btn-verify" type="submit">Iniciar sesión con contraseña</button>
-            <button class="btn-secondary" type="button" onclick="mostrarHuella()">Usar huella</button>
+            <label class="field-label" for="password">Contraseña</label>
+            <input id="password" class="field" name="password" type="password" autocomplete="current-password" required>
+            <button class="btn btn-primary btn-block" type="submit">Iniciar sesión con contraseña</button>
+            <button class="btn btn-secondary btn-block" type="button" onclick="mostrarHuella()">Usar huella</button>
         </form>
 
-        <div id="status-message" class="status-box info" style="display: none;"></div>
-
+        <div id="status-message" class="status-box info hidden"></div>
     </div>
 
     <script>
         const statusBox = document.getElementById('status-message');
 
         function mostrarContrasena() {
-            document.getElementById('btn-verify').style.display = 'none';
-            document.getElementById('btn-show-password').style.display = 'none';
-            document.getElementById('password-form').style.display = 'block';
+            document.getElementById('btn-verify').classList.add('hidden');
+            document.getElementById('btn-show-password').classList.add('hidden');
+            document.getElementById('password-form').classList.remove('hidden');
             document.getElementById('password').focus();
         }
 
         function mostrarHuella() {
-            document.getElementById('password-form').style.display = 'none';
-            document.getElementById('btn-verify').style.display = 'flex';
-            document.getElementById('btn-show-password').style.display = 'block';
-            statusBox.style.display = 'none';
+            document.getElementById('password-form').classList.add('hidden');
+            document.getElementById('btn-verify').classList.remove('hidden');
+            document.getElementById('btn-show-password').classList.remove('hidden');
+            statusBox.className = 'status-box info hidden';
         }
 
         document.getElementById('password-form').addEventListener('submit', function(event) {
@@ -264,7 +70,6 @@
             const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
 
             submitButton.disabled = true;
-            statusBox.style.display = 'block';
             statusBox.className = 'status-box info';
             statusBox.innerText = 'Verificando contraseña...';
 
@@ -284,7 +89,6 @@
                     window.location.href = data.redirect_url;
                     return;
                 }
-
                 statusBox.className = 'status-box error';
                 statusBox.innerText = data.message;
                 submitButton.disabled = false;
@@ -303,7 +107,6 @@
 
             btn.disabled = true;
             btnText.innerText = "Comparando...";
-            statusBox.style.display = "block";
             statusBox.className = "status-box info";
             statusBox.innerText = "Coloque su dedo en el sensor...";
 
@@ -319,11 +122,9 @@
                 if (data.status === 'success') {
                     statusBox.className = "status-box success";
                     statusBox.innerText = data.message;
-                    
                     setTimeout(() => {
                         window.location.href = data.redirect_url;
                     }, 1000);
-                    
                 } else {
                     statusBox.className = "status-box error";
                     statusBox.innerText = data.message;
@@ -331,7 +132,7 @@
                     btnText.innerText = "Reintentar";
                 }
             })
-            .catch(error => {
+            .catch(() => {
                 statusBox.className = "status-box error";
                 statusBox.innerText = "Error crítico al contactar con el hardware.";
                 btn.disabled = false;

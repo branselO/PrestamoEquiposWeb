@@ -2,28 +2,19 @@
 
 {% block title %}{{ titulo }}{% endblock %}
 
-{% block extra_css %}
-    .inv-form { max-width: 600px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 12px 30px rgba(31,41,55,.06); }
-    .inv-form h1 { margin-bottom: 1rem; font-size: 1.5rem; }
-    .inv-form p { margin-bottom: 1rem; display: flex; flex-direction: column; gap: .35rem; }
-    .inv-form input, .inv-form select, .inv-form textarea { padding: .6rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font: inherit; }
-    .inv-form input:focus, .inv-form select:focus, .inv-form textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
-    .inv-form .helptext { color: var(--text-muted); font-size: .8rem; }
-    .inv-form .errorlist { color: var(--danger); list-style: none; padding: 0; font-size: .85rem; }
-    .inv-actions { display: flex; gap: .75rem; }
-    .inv-btn { padding: .65rem 1.2rem; border-radius: .6rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-main); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
-    .inv-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-    .inv-btn.primary:hover { background: var(--primary-hover); }
-{% endblock %}
-
 {% block content %}
-    <form class="inv-form" method="post" enctype="multipart/form-data">
-        <h1>{{ titulo }}</h1>
+<section class="mx-auto w-full max-w-xl">
+    <header class="mb-6">
+        <p class="kicker">Inventario</p>
+        <h1 class="page-title">{{ titulo }}</h1>
+    </header>
+    <form class="form-stack panel p-5 sm:p-6" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {{ form.as_p }}
-        <div class="inv-actions">
-            <button type="submit" class="inv-btn primary">Guardar</button>
-            <a class="inv-btn" href="{% url 'inventario' %}">Cancelar</a>
+        <div class="actions">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a class="btn btn-secondary" href="{% url 'inventario' %}">Cancelar</a>
         </div>
     </form>
+</section>
 {% endblock %}
