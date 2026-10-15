@@ -4,6 +4,185 @@ from django.contrib.auth import get_user_model
 from unittest.mock import Mock, patch
 
 
+class UserRegistrationFormTests(TestCase):
+    registration_fields = {
+        'numero_cuenta',
+        'numero_trabajador',
+        'rfc',
+        'curp',
+        'genero',
+        'direccion',
+        'telefono_celular',
+        'entidad_academica',
+        'programa',
+    }
+
+    def test_registration_forms_include_all_additional_user_fields(self):
+        from .forms import NormalUserCreationForm, StaffSignUpForm
+
+        for form_class in (NormalUserCreationForm, StaffSignUpForm):
+            with self.subTest(form=form_class.__name__):
+                self.assertTrue(
+                    self.registration_fields.issubset(form_class.base_fields)
+                )
+
+    def test_registration_keeps_additional_fields_until_fingerprint_step(self):
+        from .models import EntidadAcademica, Programa
+
+        staff = get_user_model().objects.create_user(
+            email='admin@example.com',
+            nombre='Admin',
+            apellidos='Prueba',
+            password='correct-password',
+            is_staff=True,
+        )
+        programa = Programa.objects.create(clave='ING', nombre='Ingeniería')
+        entidad = EntidadAcademica.objects.create(clave='FI', nombre='Facultad')
+        entidad.programas_impartidos.add(programa)
+
+        self.client.force_login(staff)
+        response = self.client.post(
+            reverse('register_Normal'),
+            {
+                'email': 'alumno@example.com',
+                'nombre': 'Ana',
+                'apellidos': 'López',
+                'numero_cuenta': '123456789',
+                'numero_trabajador': 'TRAB-10',
+                'rfc': 'LOPA000101ABC',
+                'curp': 'LOPA000101MDFXXX00',
+                'genero': 'F',
+                'direccion': 'Calle Principal 123',
+                'telefono_celular': '5512345678',
+                'entidad_academica': entidad.pk,
+                'programa': programa.pk,
+                'password1': 'secure-test-password',
+                'password2': 'secure-test-password',
+            },
+        )
+
+        self.assertRedirects(response, reverse('registrar_huella'))
+        temp_data = self.client.session['temp_user_data']
+        self.assertEqual(temp_data['numero_cuenta'], '123456789')
+        self.assertEqual(temp_data['numero_trabajador'], 'TRAB-10')
+        self.assertEqual(temp_data['rfc'], 'LOPA000101ABC')
+        self.assertEqual(temp_data['curp'], 'LOPA000101MDFXXX00')
+        self.assertEqual(temp_data['genero'], 'F')
+        self.assertEqual(temp_data['direccion'], 'Calle Principal 123')
+        self.assertEqual(temp_data['telefono_celular'], '5512345678')
+        self.assertEqual(temp_data['entidad_academica_id'], entidad.pk)
+        self.assertEqual(temp_data['programa_id'], programa.pk)
+        self.assertFalse(temp_data['is_staff'])
+
+        response = self.client.post(reverse('registrar_huella'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'success')
+        usuario = get_user_model().objects.get(email='alumno@example.com')
+        self.assertEqual(usuario.numero_cuenta, '123456789')
+        self.assertEqual(usuario.numero_trabajador, 'TRAB-10')
+        self.assertEqual(usuario.rfc, 'LOPA000101ABC')
+        self.assertEqual(usuario.curp, 'LOPA000101MDFXXX00')
+        self.assertEqual(usuario.genero, 'F')
+        self.assertEqual(usuario.direccion, 'Calle Principal 123')
+        self.assertEqual(usuario.telefono_celular, '5512345678')
+        self.assertEqual(usuario.entidad_academica_id, entidad.pk)
+        self.assertEqual(usuario.programa_id, programa.pk)
+
+    def test_programas_endpoint_returns_only_programs_of_selected_entity(self):
+        from .models import EntidadAcademica, Programa
+
+        entidad = EntidadAcademica.objects.create(clave='FI', nombre='Facultad')
+        programa_permitido = Programa.objects.create(clave='ING', nombre='Ingeniería')
+        Programa.objects.create(clave='DER', nombre='Derecho')
+        entidad.programas_impartidos.add(programa_permitido)
+
+        response = self.client.get(
+            reverse('programas_por_entidad'),
+            {'entidad_id': entidad.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()['programas'],
+            [{
+                'id': programa_permitido.pk,
+                'clave': 'ING',
+                'nombre': 'Ingeniería',
+            }],
+        )
+
+    def test_registration_form_rejects_program_not_imparted_by_selected_entity(self):
+        from .forms import NormalUserCreationForm
+        from .models import EntidadAcademica, Programa
+
+        entidad = EntidadAcademica.objects.create(clave='FI', nombre='Facultad')
+        otra_entidad = EntidadAcademica.objects.create(clave='FDER', nombre='Derecho')
+        programa = Programa.objects.create(clave='DER', nombre='Derecho')
+        otra_entidad.programas_impartidos.add(programa)
+
+        form = NormalUserCreationForm(data={
+            'email': 'alumno@example.com',
+            'nombre': 'Ana',
+            'apellidos': 'López',
+            'entidad_academica': entidad.pk,
+            'programa': programa.pk,
+            'password1': 'secure-test-password',
+            'password2': 'secure-test-password',
+        })
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('programa', form.errors)
+
+    def test_user_profile_displays_all_registration_fields(self):
+        from .models import EntidadAcademica, Programa
+
+        entidad = EntidadAcademica.objects.create(clave='FI', nombre='Facultad de Ingeniería')
+        programa = Programa.objects.create(
+            clave='ING',
+            nombre='Ingeniería en Computación',
+        )
+        entidad.programas_impartidos.add(programa)
+        usuario = get_user_model().objects.create(
+            email='ana@example.com',
+            nombre='Ana',
+            apellidos='López',
+            numero_cuenta='123456789',
+            numero_trabajador='TRAB-10',
+            rfc='LOPA000101ABC',
+            curp='LOPA000101MDFXXX00',
+            genero='F',
+            direccion='Calle Principal 123',
+            telefono_celular='5512345678',
+            entidad_academica=entidad,
+            programa=programa,
+        )
+
+        response = self.client.get(
+            reverse('perfil_usuario', args=[usuario.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        for value in (
+            'Número de cuenta',
+            '123456789',
+            'Número de trabajador',
+            'TRAB-10',
+            'RFC',
+            'LOPA000101ABC',
+            'CURP',
+            'LOPA000101MDFXXX00',
+            'Femenino',
+            'Calle Principal 123',
+            '5512345678',
+            'Facultad de Ingeniería',
+            'Ingeniería en Computación',
+            'Fecha de registro',
+        ):
+            with self.subTest(value=value):
+                self.assertContains(response, value)
+
+
 class LoginFlowTests(TestCase):
     def setUp(self):
         self.user = get_user_model()(

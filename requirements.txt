@@ -1,3 +1,4 @@
 Django
 pyserial
 adafruit-circuitpython-fingerprint
+Pillow

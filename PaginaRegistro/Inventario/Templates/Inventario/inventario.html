@@ -86,7 +86,9 @@
                         <div><dt>Comentarios</dt><dd>{{ d.comentarios|default:"—"|linebreaksbr }}</dd></div>
                         {% if d.foto %}<div><dt>Foto</dt><dd><img src="{{ d.foto.url }}" alt="{{ d.nombre }}"></dd></div>{% endif %}
                         <div class="inv-detail-actions">
-                            <a href="{% url 'dispositivo_editar' d.pk %}" class="inv-btn">Editar dispositivo</a>
+                            {% if d.estado != 'prestado' %}
+                                <a href="{% url 'dispositivo_editar' d.pk %}" class="inv-btn">Editar dispositivo</a>
+                            {% endif %}
                             {% if d.estado == 'prestado' %}
                                 <a href="{% url 'prestamos' %}?codigo_inventario={{ d.codigo_inventario }}" class="inv-btn">Dar seguimiento al préstamo</a>
                             {% endif %}

@@ -109,12 +109,19 @@
                             <dt>Dispositivos</dt>
                             <dd>
                                 {% for detalle in prestamo.detalles.all %}
-                                    {{ detalle.dispositivo.codigo_inventario }} — {{ detalle.fecha_devuelto|yesno:"DEVUELTO,EN USO" }}<br>
+                                    {% if detalle.fecha_devuelto %}
+                                        {{ detalle.dispositivo.codigo_inventario }} - devuelto por {{ detalle.nombre_externo_devuelve|default:"—" }} el {{ detalle.fecha_devuelto|date:"d/m/Y H:i" }}
+                                    {% else %}
+                                        {{ detalle.dispositivo.codigo_inventario }} — EN USO
+                                    {% endif %}<br>
                                 {% empty %}
                                     Sin dispositivos
                                 {% endfor %}
                             </dd>
                         </div>
+                        {% if prestamo.comentarios_devolucion %}
+                        <div><dt>Comentarios de devolución</dt><dd style="white-space:pre-line;">{{ prestamo.comentarios_devolucion }}</dd></div>
+                        {% endif %}
                         <div class="inv-detail-actions">
                             <a href="{% url 'perfil_usuario' prestamo.usuario_solicita.id %}" class="inv-btn">Ver perfil de Usuario</a>
                             <button type="button" class="inv-btn">Registrar Sanción</button>

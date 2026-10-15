@@ -11,6 +11,11 @@ urlpatterns = [
     # 2. Rutas de Registro de Usuarios
     path('register/', views.SignUpView.as_view(), name='register_Staff'),
     path('crear_usuario/', views.RegisterNormalUserView.as_view(), name='register_Normal'),
+    path(
+        'api/programas-por-entidad/',
+        views.programas_por_entidad,
+        name='programas_por_entidad',
+    ),
 
     # 3. Rutas de la API Biométrica (Hardware AS608)
     path('api/registrar_huella/', views.api_registrar_huella, name='registrar_huella'),

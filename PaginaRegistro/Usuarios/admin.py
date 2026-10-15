@@ -1,12 +1,12 @@
 from django.contrib import admin
-from .models import CustomUser, StaffUser, NormalUser, Dependencia
+from .models import CustomUser, StaffUser, NormalUser, EntidadAcademica, Programa
 
-admin.site.register(Dependencia)
 
 class BaseUserAdmin(admin.ModelAdmin):
     list_display = ('email', 'nombre', 'apellidos', 'numero_cuenta', 'is_staff')
-    list_filter = ('is_staff', 'dependencia')
+    list_filter = ('is_staff', 'fecha_registro', 'programa')
     search_fields = ('email', 'numero_cuenta', 'nombre')
+    readonly_fields = ('fecha_registro',)
 
     # Esta regla asegura que solo un Superusuario pueda ver esta sección en el menú
     def has_module_permission(self, request):
@@ -36,3 +36,17 @@ class NormalUserAdmin(BaseUserAdmin):
 class MasterUserAdmin(BaseUserAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request)
+
+@admin.register(Programa)
+class ProgramaAdmin(admin.ModelAdmin):
+    list_display = ('clave', 'nombre')
+    search_fields = ('clave', 'nombre')
+
+# 2. Registramos la Entidad Académica con la MAGIA de filter_horizontal
+@admin.register(EntidadAcademica)
+class EntidadAcademicaAdmin(admin.ModelAdmin):
+    list_display = ('clave', 'nombre')
+    search_fields = ('clave', 'nombre')
+    
+    # ESTA LÍNEA CAMBIA TODA LA INTERFAZ:
+    filter_horizontal = ('programas_impartidos',)

@@ -7,10 +7,59 @@ from django.contrib.auth import login
 from django.http import JsonResponse
 
 from .forms import EmailLoginForm, StaffSignUpForm, NormalUserCreationForm
-from .models import CustomUser
+from .models import CustomUser, EntidadAcademica, Programa
 from . import hardware
 from .hardware import verify_fingerprint_from_db, get_sensor, enroll_fingerprint_to_db
 from django.shortcuts import get_object_or_404
+
+
+def programas_por_entidad(request):
+    if request.method != 'GET':
+        return JsonResponse(
+            {'error': 'Método no permitido.'},
+            status=405,
+        )
+
+    entity_id = request.GET.get('entidad_id')
+    if not entity_id or not entity_id.isdecimal():
+        return JsonResponse(
+            {'error': 'Selecciona una entidad académica válida.'},
+            status=400,
+        )
+
+    if not EntidadAcademica.objects.filter(pk=entity_id).exists():
+        return JsonResponse(
+            {'error': 'La entidad académica seleccionada no existe.'},
+            status=404,
+        )
+
+    programas = Programa.objects.filter(
+        entidades__pk=entity_id
+    ).distinct().order_by('nombre').values('id', 'clave', 'nombre')
+    return JsonResponse({'programas': list(programas)})
+
+
+def _get_registration_session_data(form, is_staff):
+    user = form.save(commit=False)
+    data = {
+        'email': user.email,
+        'nombre': user.nombre,
+        'apellidos': user.apellidos,
+        'password': user.password,
+        'is_staff': is_staff,
+    }
+
+    for field_name in form.Meta.fields:
+        if field_name in {'email', 'nombre', 'apellidos'}:
+            continue
+
+        model_field = CustomUser._meta.get_field(field_name)
+        if model_field.is_relation:
+            data[f'{field_name}_id'] = getattr(user, f'{field_name}_id')
+        else:
+            data[field_name] = getattr(user, field_name)
+
+    return data
 
 
 # 1. VISTAS DE REGISTRO 
@@ -21,17 +70,10 @@ class SignUpView(CreateView):
     template_name = 'Usuarios/register_Staff.html'
 
     def form_valid(self, form):
-        # commit=False pausa el guardado en la base de datos, pero genera el hash de la contraseña
-        user = form.save(commit=False) 
-        
-        self.request.session['temp_user_data'] = {
-            'email': user.email,
-            'nombre': user.nombre,
-            'apellidos': user.apellidos,
-            'password': user.password, 
-            'is_staff': True 
-        }
-        
+        self.request.session['temp_user_data'] = _get_registration_session_data(
+            form,
+            is_staff=True,
+        )
         return redirect('registrar_huella')
 
 # VIEW PARA EL REGISTRO DE USUARIOS NORMALES
@@ -43,14 +85,10 @@ class RegisterNormalUserView(UserPassesTestMixin, CreateView):
         return self.request.user.is_authenticated and self.request.user.is_staff
 
     def form_valid(self, form):
-        user = form.save(commit=False)
-        self.request.session['temp_user_data'] = {
-            'email': user.email,
-            'nombre': user.nombre,
-            'apellidos': user.apellidos,
-            'password': user.password,
-            'is_staff': False 
-        }
+        self.request.session['temp_user_data'] = _get_registration_session_data(
+            form,
+            is_staff=False,
+        )
         return redirect('registrar_huella')  
 
 
@@ -109,6 +147,16 @@ def api_registrar_huella(request):
                     huella_template=template_bytes,
                     is_staff=temp_data['is_staff']
                 )
+                for field_name, value in temp_data.items():
+                    if field_name not in {
+                        'email',
+                        'nombre',
+                        'apellidos',
+                        'password',
+                        'is_staff',
+                    }:
+                        setattr(user, field_name, value)
+
                 user.save()
                 
                 del request.session['temp_user_data']

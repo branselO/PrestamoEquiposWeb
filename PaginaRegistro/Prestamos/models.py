@@ -39,6 +39,21 @@ class Prestamo(models.Model):
         else:
             return "Completado"
         
+    @property
+    def comentarios_devolucion(self):
+        comentarios = []
+        vistos = set()
+        detalles = self.detalles.filter(
+            fecha_devuelto__isnull=False, comentarios_devolucion__isnull=False
+        ).order_by('fecha_devuelto', 'id')
+        for detalle in detalles:
+            texto = detalle.comentarios_devolucion.strip()
+            clave = (detalle.fecha_devuelto, texto)
+            if texto and clave not in vistos:
+                vistos.add(clave)
+                comentarios.append(texto)
+        return "\n".join(comentarios)
+
     class Meta:
         verbose_name = "Préstamo (Ticket)"
         verbose_name_plural = "Préstamos (Tickets)"

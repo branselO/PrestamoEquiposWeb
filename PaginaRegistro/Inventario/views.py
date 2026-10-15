@@ -43,8 +43,10 @@ class adminInventarioView(StaffRequiredMixin, TemplateView):
 
 class DispositivoCreateView(StaffRequiredMixin, CreateView):
     model = Dispositivo
+    model.estado = "Disponible"
     fields = ['codigo_inventario', 'nombre', 'categoria', 'especificaciones',
-              'estado', 'foto', 'comentarios']
+              'foto', 'comentarios']
+
     template_name = 'Inventario/form.html'
     success_url = reverse_lazy('inventario')
     extra_context = {'titulo': 'Añadir dispositivo'}
@@ -52,11 +54,18 @@ class DispositivoCreateView(StaffRequiredMixin, CreateView):
 
 class DispositivoUpdateView(StaffRequiredMixin, UpdateView):
     model = Dispositivo
-    #En la edición del estado no se permite ponerlo como "En Prestamo" directamente, se debe gestionar a través de los préstamos
     fields = ['codigo_inventario', 'nombre', 'categoria', 'especificaciones',
               'estado', 'foto', 'comentarios']
     template_name = 'Inventario/form.html'
     success_url = reverse_lazy('inventario')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['estado'].choices = [
+            choice for choice in form.fields['estado'].choices
+            if choice[0] != 'prestado'
+        ]
+        return form
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

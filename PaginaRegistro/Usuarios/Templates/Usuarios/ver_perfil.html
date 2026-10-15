@@ -49,7 +49,15 @@
             </div>
             <dl class="profile-info">
                 <div><dt>Número de cuenta</dt><dd>{{ perfil.numero_cuenta|default:"—" }}</dd></div>
-                <div><dt>Dependencia</dt><dd>{{ perfil.dependencia|default:"—" }}</dd></div>
+                <div><dt>Número de trabajador</dt><dd>{{ perfil.numero_trabajador|default:"—" }}</dd></div>
+                <div><dt>RFC</dt><dd>{{ perfil.rfc|default:"—" }}</dd></div>
+                <div><dt>CURP</dt><dd>{{ perfil.curp|default:"—" }}</dd></div>
+                <div><dt>Género</dt><dd>{{ perfil.get_genero_display|default:"—" }}</dd></div>
+                <div><dt>Dirección completa</dt><dd>{{ perfil.direccion|default:"—" }}</dd></div>
+                <div><dt>Teléfono celular</dt><dd>{{ perfil.telefono_celular|default:"—" }}</dd></div>
+                <div><dt>Entidad académica</dt><dd>{{ perfil.entidad_academica|default:"—" }}</dd></div>
+                <div><dt>Programa académico</dt><dd>{{ perfil.programa|default:"—" }}</dd></div>
+                <div><dt>Fecha de registro</dt><dd>{{ perfil.fecha_registro|date:"d/m/Y H:i"|default:"—" }}</dd></div>
                 <div><dt>Tipo</dt><dd>{% if perfil.is_staff %}Staff{% else %}Usuario normal{% endif %}</dd></div>
             </dl>
         </div>

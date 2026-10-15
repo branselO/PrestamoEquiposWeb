@@ -17,12 +17,47 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(email, nombre, apellidos, password, **extra_fields)
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(unique=True)
-    nombre = models.CharField(max_length=50)
-    apellidos = models.CharField(max_length=50)
-    numero_cuenta = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de Cuenta / Trabajador")
+    OPCIONES_GENERO = [
+        ('M', 'Masculino'),
+        ('F', 'Femenino'),
+        ('O', 'Otro'),
+        ('N', 'Prefiero no decirlo'),
+    ]
 
-    dependencia = models.ForeignKey('Dependencia', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Dependencia/Facultad")
+    email = models.EmailField(unique=True, verbose_name="Correo Electrónico")
+    nombre = models.CharField(max_length=100)
+    apellidos = models.CharField(max_length=100)
+    numero_cuenta = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de Cuenta (Alumnos)")
+    
+    # --- LOS NUEVOS CAMPOS ADMINISTRATIVOS ---
+    numero_trabajador = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de Trabajador")
+    rfc = models.CharField(max_length=13, blank=True, null=True, verbose_name="RFC")
+    curp = models.CharField(max_length=18, blank=True, null=True, verbose_name="CURP")
+    genero = models.CharField(max_length=1, choices=OPCIONES_GENERO, blank=True, null=True, verbose_name="Género")
+    direccion = models.TextField(blank=True, null=True, verbose_name="Dirección Completa")
+    telefono_celular = models.CharField(max_length=15, blank=True, null=True, verbose_name="Teléfono Celular")
+    
+    # auto_now_add=True hace que el sistema llene este campo automáticamente cuando se crea el registro
+    fecha_registro = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Registro en el Sistema")
+    # ----------------------------------------
+
+    # Llaves foráneas (De la explicación anterior)
+    entidad_academica = models.ForeignKey(
+        'EntidadAcademica', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='usuarios'
+    )
+    
+    programa = models.ForeignKey(
+        'Programa', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='alumnos'
+    )
+    #Huella digital del usuario
     huella_template = models.BinaryField(null=True, blank=True)
     
     is_active = models.BooleanField(default=True)
@@ -65,13 +100,37 @@ class NormalUser(CustomUser):
         verbose_name = 'Usuario Normal'
         verbose_name_plural = '2. Usuarios Normales'
 
-class Dependencia(models.Model):
-    nombre = models.CharField(max_length=150, unique=True, verbose_name="Nombre de la Dependencia/Facultad")
-    clave_corta = models.CharField(max_length=20, unique=True, verbose_name="Clave Corta (Ej. FI, DGAE)")
+##### MODELOS ACADÉMICOS (PROGRAMAS Y ENTIDADES ACADÉMICAS) #####
+
+class Programa(models.Model):
+    clave = models.CharField(max_length=20, unique=True, verbose_name="Clave del Programa")
+    nombre = models.CharField(max_length=150, verbose_name="Nombre del Programa")
+    nombre_corto = models.CharField(max_length=50, blank=True, null=True)
 
     class Meta:
-        verbose_name = "Dependencia"
-        verbose_name_plural = "Dependencias"
+        verbose_name = "Programa Académico"
+        verbose_name_plural = "Programas Académicos"
 
     def __str__(self):
-        return self.clave_corta
+        return f"{self.clave} - {self.nombre}"
+
+
+class EntidadAcademica(models.Model):
+    clave = models.CharField(max_length=20, unique=True, verbose_name="Clave (Ej. FI, IIMAS)")
+    nombre = models.CharField(max_length=150, verbose_name="Nombre de la Entidad")
+    director = models.CharField(max_length=150, blank=True, null=True, verbose_name="Director de la Entidad")
+    # ¡AQUÍ ESTÁ LA MAGIA! Esto reemplaza por completo a CPROGRAMAS_EA
+    # Django creará la tabla puente en PostgreSQL automáticamente.
+    programas_impartidos = models.ManyToManyField(
+        Programa, 
+        related_name='entidades', 
+        blank=True,
+        verbose_name="Programas que imparte esta Entidad"
+    )
+
+    class Meta:
+        verbose_name = "Entidad Académica"
+        verbose_name_plural = "Entidades Académicas"
+
+    def __str__(self):
+        return self.nombre

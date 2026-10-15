@@ -1,4 +1,5 @@
 {% extends 'Usuarios/base.html' %}
+{% load static %}
 
 {% block title %}Registrar Nuevo Usuario{% endblock %}
 
@@ -56,7 +57,9 @@
         margin-bottom: 0.5rem;
     }
 
-    form p input:not([type="checkbox"]) {
+    form p input:not([type="checkbox"]),
+    form p select,
+    form p textarea {
         width: 100%;
         padding: 0.75rem 1rem;
         border: 1px solid var(--border);
@@ -67,10 +70,17 @@
         background-color: var(--surface);
     }
 
-    form p input:not([type="checkbox"]):focus {
+    form p input:not([type="checkbox"]):focus,
+    form p select:focus,
+    form p textarea:focus {
         outline: none;
         border-color: var(--primary);
         box-shadow: 0 0 0 4px var(--focus-ring);
+    }
+
+    form p textarea {
+        min-height: 6rem;
+        resize: vertical;
     }
 
     form p input[type="checkbox"] {
@@ -129,15 +139,16 @@
     <div class="form-container">
         
         <div class="page-header">
-            <h2>Registrar a un cliente normal</h2>
+            <h2>Registrar usuario</h2>
             <p>Como miembro del Staff, puedes registrar cuentas estándar desde aquí.</p>
         </div>
 
-        <form method="post">
+        <form method="post" data-programs-url="{% url 'programas_por_entidad' %}">
             {% csrf_token %}
             {{ form.as_p }}
             <button type="submit">Crear cuenta normal</button>
         </form>
         
     </div>
+    <script src="{% static 'Usuarios/js/programas_por_entidad.js' %}" defer></script>
 {% endblock %}
