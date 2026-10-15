@@ -25,6 +25,20 @@ class Prestamo(models.Model):
     fecha_salida = models.DateTimeField(auto_now_add=True, verbose_name="Fecha y hora de salida")
     fecha_devolucion_esperada = models.DateTimeField(verbose_name="Devolución esperada")
 
+    comentarios = models.TextField(blank=True, default="", verbose_name="Comentarios del préstamo")
+
+    def agregar_comentario(self, texto, autor=None):
+        texto = (texto or "").strip()
+        if not texto:
+            return False
+        from django.utils import timezone
+        sello = timezone.localtime().strftime("%d/%m/%Y %H:%M")
+        quien = f" {autor.email}" if autor is not None and getattr(autor, "email", None) else ""
+        entrada = f"[{sello}]{quien}: {texto}"
+        self.comentarios = f"{self.comentarios}\n{entrada}" if self.comentarios else entrada
+        self.save(update_fields=['comentarios'])
+        return True
+
     @property
     def estado_ticket(self):
         total_equipos = self.detalles.count()
@@ -114,6 +128,14 @@ class Sancion(models.Model):
     # CASCADE: Si por alguna razón se borra el préstamo o el usuario, la sanción desaparece
     prestamo = models.ForeignKey(Prestamo, on_delete=models.CASCADE, related_name='sanciones')
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='mis_sanciones')
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sanciones_registradas',
+        verbose_name="Staff que registró la sanción",
+    )
 
     tipo_sancion = models.CharField(max_length=50, choices=TIPO_SANCION)
     estado = models.CharField(max_length=20, choices=ESTADO_SANCION, default='activa')

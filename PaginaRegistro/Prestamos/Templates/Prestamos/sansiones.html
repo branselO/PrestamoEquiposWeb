@@ -1,0 +1,139 @@
+{% extends 'Usuarios/base.html' %}
+
+{% block title %}Administración de sanciones{% endblock %}
+
+{% block extra_css %}
+    .users-heading { margin-bottom: 1.5rem; }
+    .users-heading h1 { margin-bottom: .5rem; font-size: clamp(1.75rem, 4vw, 2.25rem); letter-spacing: -0.04em; }
+    .users-heading p { color: var(--text-muted); line-height: 1.6; }
+
+    .inv-filters { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.25rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
+    .inv-filters input, .inv-filters select { padding: .6rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font: inherit; background: #fff; }
+    .inv-filters input[type=search], .inv-filters input[type=number] { flex: 1 1 220px; }
+    .inv-filters input:focus, .inv-filters select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+
+    .inv-btn { display: inline-block; padding: .65rem 1.2rem; border-radius: .6rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-main); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+    .inv-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .inv-btn.primary:hover { background: var(--primary-hover); }
+
+    .inv-list { display: flex; flex-direction: column; gap: .6rem; }
+    .inv-item { background: var(--surface); border: 1px solid var(--border); border-radius: .85rem; box-shadow: 0 6px 18px rgba(31,41,55,.05); }
+    .inv-item summary { display: flex; align-items: center; gap: 1rem; padding: .9rem 1.1rem; cursor: pointer; list-style: none; }
+    .inv-item summary::-webkit-details-marker { display: none; }
+    .inv-id { font-family: monospace; font-weight: 700; color: var(--primary); min-width: 6rem; }
+    .inv-name { flex: 1; font-weight: 600; }
+    .inv-more { color: var(--primary); font-size: 0; }
+    .inv-more::before { font-size: .85rem; font-weight: 600; }
+    .inv-item[open] .inv-more::before { content: "Ver menos"; }
+    .inv-item:not([open]) .inv-more::before { content: "Ver más"; }
+    .inv-details { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .9rem 1.5rem; padding-top: 1rem; }
+    .inv-details dt { color: var(--text-muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
+    .inv-details dd { margin: .15rem 0 0; line-height: 1.5; }
+    .inv-detail-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .75rem; }
+    .inv-badge { padding: .15rem .6rem; border-radius: 999px; font-size: .8rem; font-weight: 600; }
+    .inv-badge.activa { background: #fee2e2; color: #991b1b; }
+    .inv-badge.resuelta { background: #d1fae5; color: #065f46; }
+    .inv-empty { padding: 2rem; text-align: center; color: var(--text-muted); background: var(--surface); border: 1px dashed var(--border); border-radius: .85rem; }
+
+    dialog.return-modal { position: fixed; inset: 0; margin: auto; overflow-y: auto; border: 0; border-radius: 1rem; padding: 1.5rem; width: min(480px, 92vw); max-height: 90vh; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+    dialog.return-modal::backdrop { background: rgba(31,41,55,.35); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+    .return-modal h2 { margin: 0 0 .25rem; }
+    .return-modal select { width: 100%; margin-top: .4rem; padding: .6rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font: inherit; box-sizing: border-box; }
+    .return-actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.25rem; }
+    .flash { padding: .8rem 1rem; border-radius: .6rem; margin-bottom: 1rem; background: #d1fae5; color: #065f46; }
+    .flash.error { background: #fee2e2; color: #991b1b; }
+{% endblock %}
+
+{% block content %}
+    <section class="users-page" aria-labelledby="sanciones-title">
+        <header class="users-heading">
+            <h1 id="sanciones-title">Administración de Sanciones</h1>
+            <p>Consulta las sanciones registradas. Puedes filtrarlas por estado, ID del préstamo o correo del usuario.</p>
+        </header>
+
+        {% for message in messages %}
+            <div class="flash {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+
+        {% if usuario_filtrado %}
+            <div class="inv-empty" style="margin-bottom:1.25rem;text-align:left;">
+                Mostrando únicamente las sanciones de <strong>{{ usuario_filtrado.nombre }} {{ usuario_filtrado.apellidos }}</strong>.
+                <a href="{% url 'sanciones' %}">Ver todas</a>
+            </div>
+        {% endif %}
+
+        <form class="inv-filters" method="get">
+            {% if usuario_filtrado %}<input type="hidden" name="usuario" value="{{ usuario_filtrado.id }}">{% endif %}
+            <input type="number" name="prestamo" min="1" value="{{ busqueda_prestamo }}" placeholder="ID del préstamo…" aria-label="ID del préstamo">
+            <input type="search" name="correo" value="{{ correo }}" placeholder="Correo del usuario…" aria-label="Correo del usuario">
+            <select name="estado" aria-label="Estado">
+                <option value="">Todos los estados</option>
+                {% for valor, etiqueta in estados %}
+                    <option value="{{ valor }}" {% if estado == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="inv-btn primary">Filtrar</button>
+            <a href="?" class="inv-btn">Limpiar</a>
+        </form>
+
+        <p style="margin:1.0rem; text-align:right;"><a href="{% url 'registrar_sancion' %}" class="inv-btn primary">Registrar Sanción</a></p>
+
+        <div class="inv-list">
+            {% for sancion in sanciones %}
+                <details class="inv-item">
+                    <summary>
+                        <span class="inv-id">Sanción #{{ sancion.id }}</span>
+                        <span class="inv-name">Préstamo #{{ sancion.prestamo_id }}</span>
+                        <span class="inv-badge {{ sancion.estado }}">{{ sancion.get_estado_display }}</span>
+                        <span class="inv-more" aria-hidden="true">.</span>
+                    </summary>
+                    <dl class="inv-details">
+                        <div><dt>Tipo de sanción</dt><dd>{{ sancion.get_tipo_sancion_display }}</dd></div>
+                        <div><dt>Fecha de registro</dt><dd>{{ sancion.fecha_reporte|date:"d/m/Y H:i" }}</dd></div>
+                        <div><dt>Usuario sancionado</dt><dd>{{ sancion.usuario.nombre }} {{ sancion.usuario.apellidos }}</dd></div>
+                        <div><dt>Correo</dt><dd>{{ sancion.usuario.email }}</dd></div>
+                        <div><dt>Registrada por</dt><dd>{{ sancion.registrado_por.email|default:"—" }}</dd></div>
+                        <div style="grid-column:1 / -1;">
+                            <dt>Dispositivos del préstamo</dt>
+                            <dd>
+                                {% for detalle in sancion.prestamo.detalles.all %}
+                                    {{ detalle.dispositivo.codigo_inventario }} — {{ detalle.dispositivo.nombre }}<br>
+                                {% empty %}
+                                    Sin dispositivos
+                                {% endfor %}
+                            </dd>
+                        </div>
+                        <div style="grid-column:1 / -1;"><dt>Observaciones</dt><dd style="white-space:pre-line;">{{ sancion.observaciones }}</dd></div>
+                        <div class="inv-detail-actions">
+                            <a href="{% url 'perfil_usuario' sancion.usuario.id %}" class="inv-btn">Ver perfil</a>
+                            <button type="button" class="inv-btn primary" data-open-modal="estado-{{ sancion.id }}">Modificar estado</button>
+                        </div>
+                    </dl>
+                </details>
+                <dialog class="return-modal" id="estado-{{ sancion.id }}">
+                    <form method="post" action="{% url 'modificar_estado_sancion' sancion.id %}">
+                        {% csrf_token %}
+                        <h2>Modificar estado de sanción #{{ sancion.id }}</h2>
+                        <label for="estado-sel-{{ sancion.id }}" style="display:block;margin-top:1rem;font-weight:600;">Estado</label>
+                        <select id="estado-sel-{{ sancion.id }}" name="estado">
+                            {% for valor, etiqueta in estados %}
+                                <option value="{{ valor }}" {% if sancion.estado == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="return-actions">
+                            <button type="button" class="inv-btn" data-close-modal>Cancelar</button>
+                            <button type="submit" class="inv-btn primary">Guardar</button>
+                        </div>
+                    </form>
+                </dialog>
+            {% empty %}
+                <div class="inv-empty">No se encontraron sanciones.</div>
+            {% endfor %}
+        </div>
+    </section>
+    <script>
+        document.querySelectorAll('[data-open-modal]').forEach(b => b.addEventListener('click', () => document.getElementById(b.dataset.openModal).showModal()));
+        document.querySelectorAll('[data-close-modal]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
+        document.querySelectorAll('dialog.return-modal').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
+    </script>
+{% endblock %}

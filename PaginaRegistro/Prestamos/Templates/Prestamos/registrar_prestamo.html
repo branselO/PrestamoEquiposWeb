@@ -15,7 +15,10 @@
     .inv-btn { display: inline-block; padding: .65rem 1.2rem; border-radius: .6rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-main); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
     .inv-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
     .inv-btn.primary:hover { background: var(--primary-hover); }
+    .inv-btn.cancel { background: var(--surface); border-color: var(--border); color: var(--text-main); }
+    .inv-btn.cancel:hover { background: var(--surface-hover); }
     .inv-empty { padding: 2rem; text-align: center; color: var(--text-muted); background: var(--surface); border: 1px dashed var(--border); border-radius: .85rem; }
+    .prestamos-back { color: var(--primary); font-weight: 600; text-decoration: none; font-size: .9rem; }
 
     .loan-register { padding: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
     .loan-register fieldset { border: 0; padding: 0; min-width: 0; }
@@ -112,6 +115,14 @@
             {% else %}
                 <form class="loan-register-form" method="post">
                     {% csrf_token %}
+                    <label for="fecha-devolucion">
+                        Fecha y hora de devolución esperada
+                        <input id="fecha-devolucion" type="datetime-local" name="fecha_devolucion_esperada" required>
+                    </label>
+                    <div style="display: flex; gap: .5rem; align-items: center;"> 
+                        <a href="{% url 'prestamos' %}" class="inv-btn cancel">Cancelar</a>
+                    <button type="submit" class="inv-btn primary">Continuar a datos del solicitante</button>
+                    </div>
                     <input type="hidden" name="accion" value="seleccionar_dispositivos">
 
                     {% if dispositivos_disponibles %}
@@ -133,17 +144,9 @@
                     {% else %}
                         <div class="inv-empty">No hay dispositivos disponibles que coincidan.</div>
                     {% endif %}
-
-                    <label for="fecha-devolucion">
-                        Fecha y hora de devolución esperada
-                        <input id="fecha-devolucion" type="datetime-local" name="fecha_devolucion_esperada" required>
-                    </label>
-                    <button type="submit" class="inv-btn primary">Continuar a datos del solicitante</button>
                 </form>
             {% endif %}
         </div>
-
-        <p style="margin-top:1.25rem"><a href="{% url 'prestamos' %}" class="inv-btn">Regresar</a></p>
     </section>
 
     <script>

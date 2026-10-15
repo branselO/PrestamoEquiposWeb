@@ -67,6 +67,11 @@
             <a href="{% url 'inventario' %}" class="inv-btn">Limpiar</a>
         </form>
 
+        <div class="inv-actions" style="margin-bottom: 1rem; text-align: right;">
+            <a href="{% url 'dispositivo_nuevo' %}" class="inv-btn primary">Añadir dispositivo</a>
+            <a href="{% url 'categoria_nueva' %}" class="inv-btn">Añadir categoría</a>
+        </div>
+
         <div class="inv-list">
             {% for d in dispositivos %}
                 <details class="inv-item">
@@ -98,11 +103,6 @@
             {% empty %}
                 <div class="inv-empty">No se encontraron dispositivos.</div>
             {% endfor %}
-        </div>
-
-        <div class="inv-footer">
-            <a href="{% url 'dispositivo_nuevo' %}" class="inv-btn primary">Añadir dispositivo</a>
-            <a href="{% url 'categoria_nueva' %}" class="inv-btn">Añadir categoría</a>
         </div>
     </section>
 {% endblock %}

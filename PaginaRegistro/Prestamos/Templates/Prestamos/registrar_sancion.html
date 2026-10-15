@@ -1,0 +1,90 @@
+{% extends 'Usuarios/base.html' %}
+
+{% block title %}Registrar sanción{% endblock %}
+
+{% block extra_css %}
+    .users-heading { margin-bottom: 1.5rem; }
+    .users-heading h1 { margin-bottom: .5rem; font-size: clamp(1.75rem, 4vw, 2.25rem); letter-spacing: -0.04em; }
+    .users-heading p { color: var(--text-muted); line-height: 1.6; }
+    .sanc-form { max-width: 640px; padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
+    .sanc-form label { display: block; margin-top: 1rem; font-weight: 600; }
+    .sanc-form input, .sanc-form select, .sanc-form textarea { width: 100%; margin-top: .4rem; padding: .6rem .75rem; border: 1px solid var(--border); border-radius: .6rem; font: inherit; background: #fff; box-sizing: border-box; }
+    .sanc-form input[readonly] { background: #f3f4f6; color: var(--text-muted); }
+    .sanc-form textarea { min-height: 7rem; resize: vertical; }
+    .sanc-form input:focus, .sanc-form select:focus, .sanc-form textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+    .sanc-hint { margin-top: .35rem; font-size: .85rem; color: #991b1b; min-height: 1.2em; }
+    .sanc-actions { display: flex; gap: .75rem; margin-top: 1.5rem; }
+    .inv-btn { display: inline-block; padding: .65rem 1.2rem; border-radius: .6rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-main); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+    .inv-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .inv-btn.primary:hover { background: var(--primary-hover); }
+    .flash { padding: .8rem 1rem; border-radius: .6rem; margin-bottom: 1rem; background: #d1fae5; color: #065f46; }
+    .flash.error { background: #fee2e2; color: #991b1b; }
+{% endblock %}
+
+{% block content %}
+    <section class="users-page" aria-labelledby="sanc-title">
+        <header class="users-heading">
+            <h1 id="sanc-title">Registrar Sanción</h1>
+            <p>Ingresa el ID del préstamo; el usuario se completa automáticamente.</p>
+        </header>
+
+        {% for message in messages %}
+            <div class="flash {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+
+        <form class="sanc-form" method="post" id="sanc-form">
+            {% csrf_token %}
+            <label for="prestamo">ID del préstamo</label>
+            <input type="number" id="prestamo" name="prestamo" min="1" value="{{ prestamo_id }}" required {% if not prestamo_id %}autofocus{% endif %}>
+            <div class="sanc-hint" id="prestamo-hint"></div>
+
+            <label for="nombre">Nombre del usuario</label>
+            <input type="text" id="nombre" value="{% if prestamo %}{{ prestamo.usuario_solicita.nombre }} {{ prestamo.usuario_solicita.apellidos }}{% endif %}" readonly tabindex="-1">
+
+            <label for="email">Correo del usuario</label>
+            <input type="text" id="email" value="{% if prestamo %}{{ prestamo.usuario_solicita.email }}{% endif %}" readonly tabindex="-1">
+
+            <label for="tipo_sancion">Tipo de sanción</label>
+            <select id="tipo_sancion" name="tipo_sancion" required>
+                <option value="">Selecciona un tipo…</option>
+                {% for valor, etiqueta in tipos %}
+                    <option value="{{ valor }}" {% if tipo == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="observaciones">Observaciones</label>
+            <textarea id="observaciones" name="observaciones" required placeholder="Describe la multa, penalización o daños…">{{ observaciones }}</textarea>
+
+            <div class="sanc-actions">
+                <button type="submit" class="inv-btn primary">Registrar sanción</button>
+                <a href="{% url 'sanciones' %}" class="inv-btn">Cancelar</a>
+            </div>
+        </form>
+    </section>
+    <script>
+        (function () {
+            const input = document.getElementById('prestamo');
+            const nombre = document.getElementById('nombre');
+            const email = document.getElementById('email');
+            const hint = document.getElementById('prestamo-hint');
+            let timer;
+
+            async function buscar() {
+                const id = input.value.trim();
+                nombre.value = ''; email.value = ''; hint.textContent = '';
+                if (!/^\d+$/.test(id)) return;
+                try {
+                    const resp = await fetch("{% url 'prestamo_usuario_json' 0 %}".replace(/0\/$/, id + '/'));
+                    if (!resp.ok) { hint.textContent = 'No existe un préstamo con ese ID.'; return; }
+                    const data = await resp.json();
+                    nombre.value = data.nombre;
+                    email.value = data.email;
+                } catch (e) {
+                    hint.textContent = 'No se pudo consultar el préstamo.';
+                }
+            }
+
+            input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(buscar, 300); });
+        })();
+    </script>
+{% endblock %}

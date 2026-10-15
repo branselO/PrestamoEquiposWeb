@@ -87,6 +87,8 @@
             <a href="?" class="inv-btn">Limpiar</a>
         </form>
 
+        <p style="margin:1.0rem; text-align:right;"><a href="{% url 'registrar_prestamo' %}" class="inv-btn primary">Registrar Préstamos</a></p>
+
         <div class="inv-list">
             {% for prestamo in prestamos %}
                 <details class="inv-item">
@@ -119,18 +121,31 @@
                                 {% endfor %}
                             </dd>
                         </div>
-                        {% if prestamo.comentarios_devolucion %}
-                        <div><dt>Comentarios de devolución</dt><dd style="white-space:pre-line;">{{ prestamo.comentarios_devolucion }}</dd></div>
+                        {% if prestamo.comentarios %}
+                        <div><dt>Comentarios</dt><dd style="white-space:pre-line;">{{ prestamo.comentarios }}</dd></div>
                         {% endif %}
                         <div class="inv-detail-actions">
                             <a href="{% url 'perfil_usuario' prestamo.usuario_solicita.id %}" class="inv-btn">Ver perfil de Usuario</a>
-                            <button type="button" class="inv-btn">Registrar Sanción</button>
+                            <a href="{% url 'registrar_sancion' %}?prestamo={{ prestamo.id }}" class="inv-btn">Registrar Sanción</a>
+                            <button type="button" class="inv-btn" data-open-return="comment-{{ prestamo.id }}">Agregar Comentario</button>
                             {% if prestamo.estado_ticket != "Completado" %}
                                 <button type="button" class="inv-btn primary" data-open-return="return-{{ prestamo.id }}">Registrar Devolución</button>
                             {% endif %}
                         </div>
                     </dl>
                 </details>
+                <dialog class="return-modal" id="comment-{{ prestamo.id }}">
+                    <form method="post" action="{% url 'agregar_comentario' prestamo.id %}">
+                        {% csrf_token %}
+                        <h2>Agregar comentario #{{ prestamo.id }}</h2>
+                        <label for="comentario-extra-{{ prestamo.id }}" style="display:block;margin-top:1rem;font-weight:600;">Comentario</label>
+                        <textarea id="comentario-extra-{{ prestamo.id }}" name="comentarios" required placeholder="Escribe un comentario…"></textarea>
+                        <div class="return-actions">
+                            <button type="button" class="inv-btn" data-close-return>Cancelar</button>
+                            <button type="submit" class="inv-btn primary">Guardar comentario</button>
+                        </div>
+                    </form>
+                </dialog>
                 {% if prestamo.estado_ticket != "Completado" %}
                 <dialog class="return-modal" id="return-{{ prestamo.id }}">
                     <form method="post" action="{% url 'registrar_devolucion' prestamo.id %}">
@@ -160,9 +175,7 @@
             {% empty %}
                 <div class="inv-empty">No se encontraron préstamos.</div>
             {% endfor %}
-        </div>
-
-        <p style="margin-top:1.5rem"><a href="{% url 'registrar_prestamo' %}" class="inv-btn primary">Registrar Préstamos</a></p>
+        </div>  
     </section>
     <script>
         document.querySelectorAll('[data-open-return]').forEach(b => b.addEventListener('click', () => document.getElementById(b.dataset.openReturn).showModal()));

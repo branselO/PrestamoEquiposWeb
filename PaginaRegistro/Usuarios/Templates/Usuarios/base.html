@@ -147,6 +147,11 @@
                class="nav-link {% if request.resolver_match.url_name == 'prestamos' %}active{% endif %}">
                Administrar Préstamos
             </a>
+
+            <a href="{% url 'sanciones' %}" 
+               class="nav-link {% if request.resolver_match.url_name == 'sanciones' %}active{% endif %}">
+               Administrar Sanciones
+            </a>
             
             <form action="{% url 'logout' %}" method="post" class="nav-logout-form">
                 {% csrf_token %}

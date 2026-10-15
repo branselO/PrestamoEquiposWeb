@@ -72,7 +72,7 @@
                     {% endfor %}
                 </ul>
                 <div class="profile-actions">
-                    <button type="button" class="profile-btn danger">Ver sanción</button>
+                    <a class="profile-btn danger" href="{% url 'sanciones' %}?usuario={{ perfil.id }}">Ver sanción</a>
                 </div>
             </div>
         {% else %}

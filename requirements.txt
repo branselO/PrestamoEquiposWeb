@@ -2,3 +2,4 @@ Django
 pyserial
 adafruit-circuitpython-fingerprint
 Pillow
+psycopg2-binary
