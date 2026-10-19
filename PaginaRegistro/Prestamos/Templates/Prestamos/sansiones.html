@@ -17,7 +17,7 @@
     {% if usuario_filtrado %}
         <div class="notice">
             <p>Mostrando únicamente las sanciones de <strong>{{ usuario_filtrado.nombre }} {{ usuario_filtrado.apellidos }}</strong>.</p>
-            <a href="{% url 'sanciones' %}" class="font-semibold text-teal-800 underline-offset-4 transition-all duration-300 hover:underline">Ver todas</a>
+            <a href="{% url 'sanciones' %}" class="font-semibold text-unam-600 underline-offset-4 transition-all duration-300 hover:text-gold-600 hover:underline">Ver todas</a>
         </div>
     {% endif %}
 
@@ -43,10 +43,10 @@
         {% for sancion in sanciones %}
             <details class="record">
                 <summary>
-                    <span class="font-mono text-sm font-bold text-teal-800">Sanción #{{ sancion.id }}</span>
+                    <span class="font-mono text-sm font-bold text-unam-600">Sanción #{{ sancion.id }}</span>
                     <span class="min-w-0 flex-1 basis-full font-semibold text-slate-900 sm:basis-auto">Préstamo #{{ sancion.prestamo_id }}</span>
                     <span class="badge {{ sancion.estado }}">{{ sancion.get_estado_display }}</span>
-                    <span class="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-teal-800 sm:ml-0">
+                    <span class="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-unam-600 transition-all duration-300 group-hover:text-gold-600 sm:ml-0">
                         <span class="when-closed">Ver más</span>
                         <span class="when-open">Ver menos</span>
                         <svg class="chevron h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>

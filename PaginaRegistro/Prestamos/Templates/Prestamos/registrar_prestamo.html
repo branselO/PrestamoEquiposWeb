@@ -91,8 +91,8 @@
                         <legend class="mb-3 text-sm font-semibold text-slate-800">Dispositivos disponibles</legend>
                         <div class="grid gap-3">
                             {% for dispositivo in dispositivos_disponibles %}
-                                <label class="device-option flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 hover:border-teal-300 hover:bg-white" data-name="{{ dispositivo.nombre|lower }}" data-category="{{ dispositivo.categoria_id|default_if_none:'' }}">
-                                    <input type="checkbox" class="mt-1 h-4 w-4 accent-teal-800" name="dispositivos" value="{{ dispositivo.pk }}">
+                                <label class="device-option flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 hover:border-gold-400 hover:bg-white" data-name="{{ dispositivo.nombre|lower }}" data-category="{{ dispositivo.categoria_id|default_if_none:'' }}">
+                                    <input type="checkbox" class="mt-1 h-4 w-4 accent-unam-600" name="dispositivos" value="{{ dispositivo.pk }}">
                                     <span class="text-sm leading-relaxed text-slate-700">
                                         <strong class="text-slate-900">{{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}</strong>
                                         {% if dispositivo.categoria %}<br>{{ dispositivo.categoria.nombre }}{% endif %}

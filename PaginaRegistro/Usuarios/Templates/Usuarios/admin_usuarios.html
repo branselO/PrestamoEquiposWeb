@@ -37,8 +37,8 @@
             {% if usuarios_normales %}
                 <ul class="space-y-3">
                     {% for usuario in usuarios_normales %}
-                        <li class="flex flex-col gap-4 rounded-2xl border border-slate-200 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md sm:flex-row sm:items-center">
-                            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-teal-50 text-sm font-bold uppercase text-teal-800" aria-hidden="true">{{ usuario.nombre|first }}{{ usuario.apellidos|first }}</span>
+                        <li class="flex flex-col gap-4 rounded-2xl border border-slate-200 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-gold-400 hover:shadow-md sm:flex-row sm:items-center">
+                            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gold-50 text-sm font-bold uppercase text-unam-600" aria-hidden="true">{{ usuario.nombre|first }}{{ usuario.apellidos|first }}</span>
                             <div class="min-w-0 flex-1">
                                 <p class="font-semibold text-slate-900">{{ usuario.nombre }} {{ usuario.apellidos }}</p>
                                 <p class="truncate text-sm text-slate-600">{{ usuario.email }}</p>
@@ -60,8 +60,8 @@
             {% if usuarios_staff %}
                 <ul class="space-y-3">
                     {% for usuario in usuarios_staff %}
-                        <li class="flex items-center gap-4 rounded-2xl border border-slate-200 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md">
-                            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-teal-50 text-sm font-bold uppercase text-teal-800" aria-hidden="true">{{ usuario.nombre|first }}{{ usuario.apellidos|first }}</span>
+                        <li class="flex items-center gap-4 rounded-2xl border border-slate-200 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-gold-400 hover:shadow-md">
+                            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gold-50 text-sm font-bold uppercase text-unam-600" aria-hidden="true">{{ usuario.nombre|first }}{{ usuario.apellidos|first }}</span>
                             <div class="min-w-0">
                                 <p class="font-semibold text-slate-900">{{ usuario.nombre }} {{ usuario.apellidos }}</p>
                                 <p class="truncate text-sm text-slate-600">{{ usuario.email }}</p>

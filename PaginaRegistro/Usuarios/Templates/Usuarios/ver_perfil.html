@@ -4,11 +4,11 @@
 
 {% block content %}
 <section class="mx-auto flex w-full max-w-4xl flex-col gap-6">
-    <a class="inline-flex w-fit items-center gap-1 text-sm font-semibold text-teal-800 transition-all duration-300 hover:gap-2 hover:text-teal-950 focus-visible:rounded-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-800/15" href="{% url 'admin_usuarios' %}">← Volver a usuarios</a>
+    <a class="inline-flex w-fit items-center gap-1 text-sm font-semibold text-unam-600 transition-all duration-300 hover:gap-2 hover:text-gold-600 focus-visible:rounded-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-unam-600/15" href="{% url 'admin_usuarios' %}">← Volver a usuarios</a>
 
     <article class="panel p-5 sm:p-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <span class="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-teal-50 text-xl font-bold uppercase text-teal-800" aria-hidden="true">{{ perfil.nombre|first }}{{ perfil.apellidos|first }}</span>
+            <span class="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-gold-50 text-xl font-bold uppercase text-unam-600" aria-hidden="true">{{ perfil.nombre|first }}{{ perfil.apellidos|first }}</span>
             <div class="min-w-0">
                 <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{{ perfil.nombre }} {{ perfil.apellidos }}</h1>
                 <p class="mt-1 break-all text-sm text-slate-600">{{ perfil.email }}</p>
