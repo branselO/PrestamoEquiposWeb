@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
@@ -40,55 +40,66 @@ class RegistrarPrestamoTests(TestCase):
         self.client.force_login(self.staff)
         self.url = reverse('registrar_prestamo')
 
-    def seleccionar_dispositivos(self, dispositivos=None):
-        if dispositivos is None:
-            dispositivos = [self.dispositivo.pk]
+    def autenticar(self, contrasena='alumno-password'):
         return self.client.post(self.url, {
-            'accion': 'seleccionar_dispositivos',
-            'dispositivos': dispositivos,
-            'fecha_devolucion_esperada': (
-                timezone.localtime(timezone.now() + timedelta(days=5))
-                .strftime('%Y-%m-%dT%H:%M')
-            ),
-        })
-
-    def iniciar_registro(self, dispositivos=None):
-        self.seleccionar_dispositivos(dispositivos)
-        return self.client.post(self.url, {
-            'accion': 'validar_solicitante',
             'correo': self.solicitante.email,
-        })
-
-    def confirmar_con_contrasena(self, contrasena='alumno-password'):
-        return self.client.post(self.url, {
-            'accion': 'confirmar_identidad',
-            'metodo_identidad': 'contrasena',
+            'metodo': 'contrasena',
             'contrasena': contrasena,
         })
 
-    def test_available_device_is_listed_then_password_registers_loan(self):
-        response = self.client.get(self.url)
-        self.assertContains(response, self.dispositivo.codigo_inventario)
-        self.assertContains(response, 'name="dispositivos"')
-
-        response = self.seleccionar_dispositivos()
-        self.assertContains(response, 'Correo del solicitante')
-        self.assertNotContains(response, 'name="contrasena"')
-
-        response = self.client.post(self.url, {
-            'accion': 'validar_solicitante',
-            'correo': self.solicitante.email,
+    def seleccionar_dispositivos(self, dispositivos=None):
+        if dispositivos is None:
+            dispositivos = [self.dispositivo.pk]
+        return self.client.post(reverse('registrar_prestamo_paso2'), {
+            'dispositivos': dispositivos,
         })
-        self.assertContains(response, 'Verificar con contraseña')
+
+    def confirmar(self, dias=5):
+        fecha = timezone.localdate() + timedelta(days=dias)
+        return self.client.post(reverse('registrar_prestamo_paso3'), {
+            'fecha_devolucion': fecha.isoformat(),
+        })
+
+    def iniciar_registro(self, dispositivos=None):
+        self.autenticar()
+        return self.seleccionar_dispositivos(dispositivos)
+
+    def confirmar_con_contrasena(self):
+        self.autenticar()
+        self.seleccionar_dispositivos()
+        return self.confirmar()
+
+    def test_three_step_flow_registers_loan_and_clears_session(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, 'name="contrasena"')
+
+        response = self.autenticar()
+        self.assertRedirects(response, reverse('registrar_prestamo_paso2'))
         self.assertEqual(
-            self.client.session['prestamo_pendiente']['usuario_id'],
+            self.client.session['registro_prestamo']['usuario_id'],
             self.solicitante.pk,
         )
 
-        response = self.confirmar_con_contrasena()
+        response = self.client.get(reverse('registrar_prestamo_paso2'))
+        self.assertContains(response, self.dispositivo.codigo_inventario)
+        response = self.seleccionar_dispositivos()
+        self.assertRedirects(response, reverse('registrar_prestamo_paso3'))
 
-        self.assertContains(response, 'registrado correctamente')
-        self.assertEqual(Prestamo.objects.count(), 1)
+        response = self.client.get(reverse('registrar_prestamo_paso3'))
+        self.assertContains(response, 'type="date"')
+        self.assertContains(response, self.dispositivo.codigo_inventario)
+
+        response = self.confirmar()
+
+        prestamo = Prestamo.objects.get()
+        self.assertRedirects(
+            response, reverse('registrar_prestamo_exito', args=[prestamo.pk])
+        )
+        self.assertEqual(
+            timezone.localtime(prestamo.fecha_devolucion_esperada).date(),
+            timezone.localdate() + timedelta(days=5),
+        )
+        self.assertNotIn('registro_prestamo', self.client.session)
         prestamo = Prestamo.objects.get()
         self.assertEqual(prestamo.usuario_solicita, self.solicitante)
         self.assertEqual(prestamo.staff_autoriza, self.staff)
@@ -98,9 +109,9 @@ class RegistrarPrestamoTests(TestCase):
         )
         self.dispositivo.refresh_from_db()
         self.assertEqual(self.dispositivo.estado, 'prestado')
-        self.assertNotIn('prestamo_pendiente', self.client.session)
+        self.assertNotIn('registro_prestamo', self.client.session)
 
-    def test_active_sanction_blocks_registration_before_identity_check(self):
+    def test_active_sanction_blocks_authentication(self):
         prestamo_anterior = Prestamo.objects.create(
             usuario_solicita=self.solicitante,
             staff_autoriza=self.staff,
@@ -113,28 +124,41 @@ class RegistrarPrestamoTests(TestCase):
             observaciones='Sanción de prueba',
         )
 
-        response = self.iniciar_registro()
+        response = self.autenticar()
 
         self.assertContains(response, 'tiene sanciones activas')
-        self.assertNotIn('prestamo_pendiente', self.client.session)
-        self.assertEqual(Prestamo.objects.count(), 1)
-        self.dispositivo.refresh_from_db()
-        self.assertEqual(self.dispositivo.estado, 'disponible')
+        self.assertNotIn('registro_prestamo', self.client.session)
 
-    def test_wrong_password_does_not_create_loan_or_change_device(self):
-        self.iniciar_registro()
-
-        response = self.confirmar_con_contrasena('incorrecta')
+    def test_wrong_password_does_not_start_flow(self):
+        response = self.autenticar('incorrecta')
 
         self.assertContains(response, 'La contraseña no es correcta.')
+        self.assertNotIn('registro_prestamo', self.client.session)
         self.assertEqual(Prestamo.objects.count(), 0)
-        self.dispositivo.refresh_from_db()
-        self.assertEqual(self.dispositivo.estado, 'disponible')
-        self.assertIn('prestamo_pendiente', self.client.session)
 
-    @patch('Prestamos.views.verify_fingerprint_from_db', return_value=True)
-    @patch('Prestamos.views.get_sensor')
-    def test_fingerprint_confirms_identity_and_closes_sensor(
+    def test_steps_require_previous_steps(self):
+        for name in ('registrar_prestamo_paso2', 'registrar_prestamo_paso3'):
+            self.assertRedirects(
+                self.client.get(reverse(name)), self.url
+            )
+        self.autenticar()
+        self.assertRedirects(
+            self.client.get(reverse('registrar_prestamo_paso3')),
+            reverse('registrar_prestamo_paso2'),
+        )
+
+    def test_past_date_is_rejected(self):
+        self.iniciar_registro()
+
+        response = self.confirmar(dias=-1)
+
+        self.assertContains(response, 'no puede ser anterior a hoy')
+        self.assertEqual(Prestamo.objects.count(), 0)
+        self.assertIn('registro_prestamo', self.client.session)
+
+    @patch('Prestamos.registro_views.verify_fingerprint_from_db', return_value=True)
+    @patch('Prestamos.registro_views.get_sensor')
+    def test_fingerprint_authenticates_and_closes_sensor(
         self,
         get_sensor,
         verify_fingerprint,
@@ -144,32 +168,28 @@ class RegistrarPrestamoTests(TestCase):
         uart = Mock(is_open=True)
         sensor = Mock()
         get_sensor.return_value = (sensor, uart)
-        self.iniciar_registro()
 
         response = self.client.post(self.url, {
-            'accion': 'confirmar_identidad',
-            'metodo_identidad': 'huella',
+            'correo': self.solicitante.email,
+            'metodo': 'huella',
         })
 
-        self.assertContains(response, 'registrado correctamente')
+        self.assertRedirects(response, reverse('registrar_prestamo_paso2'))
         verify_fingerprint.assert_called_once()
         self.assertEqual(
             bytes(verify_fingerprint.call_args.args[1]),
             b'huella-registrada',
         )
         uart.close.assert_called_once()
-        self.assertEqual(Prestamo.objects.count(), 1)
-        self.dispositivo.refresh_from_db()
-        self.assertEqual(self.dispositivo.estado, 'prestado')
 
     def test_device_that_becomes_unavailable_cannot_be_loaned(self):
         self.iniciar_registro()
         self.dispositivo.estado = 'prestado'
         self.dispositivo.save(update_fields=['estado'])
 
-        response = self.confirmar_con_contrasena()
+        response = self.confirmar()
 
-        self.assertContains(response, 'ya no están disponibles')
+        self.assertRedirects(response, reverse('registrar_prestamo_paso2'))
         self.assertEqual(Prestamo.objects.count(), 0)
 
     def test_available_devices_can_be_filtered_by_name_and_category(self):
@@ -183,12 +203,14 @@ class RegistrarPrestamoTests(TestCase):
             especificaciones='x', estado='prestado',
         )
 
-        response = self.client.get(self.url, {'q': 'laptop'})
+        self.autenticar()
+        paso2 = reverse('registrar_prestamo_paso2')
+        response = self.client.get(paso2, {'q': 'laptop'})
         self.assertContains(response, 'PC-001')
         self.assertNotContains(response, 'AU-001')
         self.assertNotContains(response, 'PC-002')
 
-        response = self.client.get(self.url, {'categoria': otra.pk})
+        response = self.client.get(paso2, {'categoria': otra.pk})
         self.assertContains(response, 'AU-001')
         self.assertNotContains(response, 'PC-001')
 
@@ -202,12 +224,12 @@ class RegistrarPrestamoTests(TestCase):
             codigo_inventario='PC-009', nombre='Otra', categoria=self.categoria,
             especificaciones='x',
         )
+        self.autenticar()
         self.seleccionar_dispositivos([self.dispositivo.pk])
-        self.client.post(self.url, {'accion': 'validar_solicitante', 'correo': self.solicitante.email})
-        self.confirmar_con_contrasena()
+        self.confirmar()
+        self.autenticar()
         self.seleccionar_dispositivos([otro.pk])
-        self.client.post(self.url, {'accion': 'validar_solicitante', 'correo': self.solicitante.email})
-        self.confirmar_con_contrasena()
+        self.confirmar()
         primero, segundo = Prestamo.objects.order_by('id')
 
         response = self.client.get(reverse('prestamos'), {'codigo_inventario': 'PC-001'})
@@ -226,7 +248,8 @@ class RegistrarPrestamoTests(TestCase):
         self.dispositivo.save()
 
         page = self.client.get(reverse('prestamos'))
-        self.assertContains(page, f'id="return-{prestamo.id}"')
+        self.assertContains(page, f'id="como-{prestamo.id}"')
+        self.assertContains(page, f'id="sin-{prestamo.id}"')
 
         response = self.client.post(reverse('registrar_devolucion', args=[prestamo.id]), {
             'detalles': [detalle.pk],
@@ -241,3 +264,143 @@ class RegistrarPrestamoTests(TestCase):
         self.assertEqual(detalle.nombre_externo_devuelve, 'Un amigo')
         self.assertEqual(detalle.comentarios_devolucion, 'Pantalla rayada')
         self.assertEqual(self.dispositivo.estado, 'disponible')
+
+
+class RegistrarDevolucionFlujoTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User(email='staff@example.com', nombre='P', apellidos='S', is_staff=True)
+        self.staff.set_password('staff-password')
+        self.staff.save()
+        self.alumno = User(email='alumno@example.com', nombre='Alumno', apellidos='Prueba')
+        self.alumno.set_password('alumno-password')
+        self.alumno.save()
+        self.otro = User(email='otro@example.com', nombre='Otro', apellidos='Prueba')
+        self.otro.set_password('otro-password')
+        self.otro.save()
+        categoria = Categoria.objects.create(nombre='Cómputo')
+        self.dispositivo = Dispositivo.objects.create(
+            codigo_inventario='PC-001', nombre='Laptop', categoria=categoria,
+            especificaciones='x', estado='prestado',
+        )
+        self.prestamo = Prestamo.objects.create(
+            usuario_solicita=self.alumno, staff_autoriza=self.staff,
+            fecha_devolucion_esperada=timezone.now() + timedelta(days=1),
+        )
+        self.detalle = self.prestamo.detalles.create(dispositivo=self.dispositivo)
+        self.client.force_login(self.staff)
+
+    def login_alumno(self):
+        return self.client.post(reverse('devolucion_login'), {
+            'correo': self.alumno.email, 'metodo': 'contrasena',
+            'contrasena': 'alumno-password',
+        })
+
+    def test_login_then_pending_list(self):
+        response = self.login_alumno()
+        self.assertRedirects(response, reverse('devolucion_pendientes'))
+        self.assertEqual(self.client.session['devolucion_usuario_id'], self.alumno.pk)
+        response = self.client.get(reverse('devolucion_pendientes'))
+        self.assertContains(response, 'PC-001')
+        self.assertContains(response, 'Devolver como usuario')
+        self.assertContains(response, 'Devolver sin usuario')
+
+    def test_wrong_password_and_missing_session(self):
+        response = self.client.post(reverse('devolucion_login'), {
+            'correo': self.alumno.email, 'metodo': 'contrasena', 'contrasena': 'mal',
+        })
+        self.assertContains(response, 'La contraseña no es correcta.')
+        self.assertRedirects(
+            self.client.get(reverse('devolucion_pendientes')), reverse('devolucion_login')
+        )
+
+    def test_return_as_user_requires_valid_credentials(self):
+        self.login_alumno()
+        url = reverse('devolucion_como_usuario', args=[self.prestamo.pk])
+        self.client.post(url, {
+            'origen': 'pendientes', 'detalles': [self.detalle.pk], 'correo': self.otro.email,
+            'metodo': 'contrasena', 'contrasena': 'mala',
+        })
+        self.detalle.refresh_from_db()
+        self.assertIsNone(self.detalle.fecha_devuelto)
+
+        response = self.client.post(url, {
+            'origen': 'pendientes', 'detalles': [self.detalle.pk], 'correo': self.otro.email,
+            'metodo': 'contrasena', 'contrasena': 'otro-password',
+        }, follow=True)
+        self.assertContains(response, 'Se registró la devolución')
+        self.detalle.refresh_from_db()
+        self.assertEqual(self.detalle.usuario_devuelve, self.otro)
+        self.dispositivo.refresh_from_db()
+        self.assertEqual(self.dispositivo.estado, 'disponible')
+
+    def test_return_without_user_needs_full_name(self):
+        self.login_alumno()
+        url = reverse('devolucion_sin_usuario', args=[self.prestamo.pk])
+        self.client.post(url, {'origen': 'pendientes', 'detalles': [self.detalle.pk], 'nombre_completo': 'Juan'})
+        self.detalle.refresh_from_db()
+        self.assertIsNone(self.detalle.fecha_devuelto)
+
+        response = self.client.post(url, {
+            'origen': 'pendientes', 'detalles': [self.detalle.pk], 'nombre_completo': 'Juan Pérez',
+        })
+        self.assertRedirects(response, reverse('devolucion_pendientes'))
+        self.detalle.refresh_from_db()
+        self.assertEqual(self.detalle.nombre_externo_devuelve, 'Juan Pérez')
+        self.assertIsNone(self.detalle.usuario_devuelve)
+
+    def test_cannot_return_loan_of_another_user(self):
+        self.client.post(reverse('devolucion_login'), {
+            'correo': self.otro.email, 'metodo': 'contrasena', 'contrasena': 'otro-password',
+        })
+        response = self.client.post(
+            reverse('devolucion_sin_usuario', args=[self.prestamo.pk]),
+            {'origen': 'pendientes', 'detalles': [self.detalle.pk], 'nombre_completo': 'Juan Pérez'},
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_return_comments_saved_and_admin_shows_who_returned(self):
+        self.login_alumno()
+        self.client.post(reverse('devolucion_como_usuario', args=[self.prestamo.pk]), {
+            'origen': 'pendientes', 'detalles': [self.detalle.pk], 'correo': self.otro.email,
+            'metodo': 'contrasena', 'contrasena': 'otro-password',
+            'comentarios': 'Pantalla rayada',
+        })
+        self.detalle.refresh_from_db()
+        self.assertEqual(self.detalle.comentarios_devolucion, 'Pantalla rayada')
+        self.prestamo.refresh_from_db()
+        self.assertIn('Pantalla rayada', self.prestamo.comentarios)
+        response = self.client.get(reverse('prestamos'))
+        perfil = reverse('perfil_usuario', args=[self.otro.pk])
+        self.assertContains(response, f'href="{perfil}"')
+        self.assertContains(response, 'Devuelto por')
+
+    def test_admin_shows_plain_name_without_link_for_external_return(self):
+        self.login_alumno()
+        self.client.post(reverse('devolucion_sin_usuario', args=[self.prestamo.pk]), {
+            'origen': 'pendientes', 'detalles': [self.detalle.pk], 'nombre_completo': 'Juan Pérez',
+            'comentarios': 'Todo bien',
+        })
+        self.detalle.refresh_from_db()
+        self.assertEqual(self.detalle.comentarios_devolucion, 'Todo bien')
+        response = self.client.get(reverse('prestamos'))
+        self.assertContains(response, 'Juan Pérez')
+        self.assertNotContains(response, '>Juan Pérez</a>')
+
+    def test_pending_cards_have_all_actions_in_both_panels(self):
+        self.login_alumno()
+        for url in (reverse('devolucion_pendientes'), reverse('prestamos')):
+            response = self.client.get(url)
+            for texto in ('Registrar sanción', 'Agregar comentario',
+                          'Devolver como usuario', 'Devolver sin usuario'):
+                self.assertContains(response, texto)
+
+    def test_admin_panel_return_without_session_redirects_to_admin(self):
+        response = self.client.post(
+            reverse('devolucion_sin_usuario', args=[self.prestamo.pk]),
+            {'origen': 'prestamos', 'detalles': [self.detalle.pk],
+             'nombre_completo': 'Juan Pérez'},
+        )
+        self.assertRedirects(response, reverse('prestamos'))
+        self.detalle.refresh_from_db()
+        self.assertIsNotNone(self.detalle.fecha_devuelto)

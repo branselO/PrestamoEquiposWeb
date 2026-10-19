@@ -1,0 +1,88 @@
+{% extends 'Usuarios/base.html' %}
+
+{% block title %}Registrar préstamo · Paso 2{% endblock %}
+
+{% block content %}
+<section class="space-y-6" aria-labelledby="loan-register-title">
+    <header>
+        <p class="kicker">Operación</p>
+        <h1 id="loan-register-title" class="page-title">Registrar préstamo</h1>
+        <p class="page-lead">Paso 2 de 3: selecciona los equipos para <strong>{{ solicitante.email }}</strong>.</p>
+    </header>
+
+    {% include 'Prestamos/_registro_pasos.html' %}
+
+    <form class="filters" method="get" id="device-filters">
+        <input type="search" name="q" value="{{ q }}" placeholder="Filtrar por nombre…" aria-label="Nombre del dispositivo">
+        <select name="categoria" aria-label="Categoría">
+            <option value="">Todas las categorías</option>
+            {% for categoria in categorias %}
+                <option value="{{ categoria.id }}" {% if categoria_sel == categoria.id|stringformat:"s" %}selected{% endif %}>{{ categoria.nombre }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="{% url 'registrar_prestamo_paso2' %}" class="btn btn-secondary" id="clear-filters">Limpiar</a>
+    </form>
+
+    <div class="panel p-5 sm:p-6">
+        <form class="space-y-5" method="post">
+            {% csrf_token %}
+            {% if dispositivos_disponibles %}
+                <fieldset class="min-w-0 border-0 p-0">
+                    <legend class="mb-3 text-sm font-semibold text-slate-800">Dispositivos disponibles</legend>
+                    <div class="grid gap-3">
+                        {% for dispositivo in dispositivos_disponibles %}
+                            <label class="device-option flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 hover:border-gold-400 hover:bg-white" data-name="{{ dispositivo.nombre|lower }}" data-category="{{ dispositivo.categoria_id|default_if_none:'' }}">
+                                <input type="checkbox" class="mt-1 h-4 w-4 accent-unam-600" name="dispositivos" value="{{ dispositivo.pk }}" {% if dispositivo.pk in seleccionados %}checked{% endif %}>
+                                <span class="text-sm leading-relaxed text-slate-700">
+                                    <strong class="text-slate-900">{{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}</strong>
+                                    {% if dispositivo.categoria %}<br>{{ dispositivo.categoria.nombre }}{% endif %}
+                                    <br>{{ dispositivo.especificaciones }}
+                                </span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </fieldset>
+            {% else %}
+                <div class="empty">No hay dispositivos disponibles que coincidan.</div>
+            {% endif %}
+            <div class="actions">
+                <a href="{% url 'registrar_prestamo' %}" class="btn btn-secondary">Atrás</a>
+                <button type="submit" class="btn btn-primary">Siguiente</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<script>
+    (function () {
+        const form = document.getElementById('device-filters');
+        const q = form.elements['q'];
+        const categoria = form.elements['categoria'];
+        const options = document.querySelectorAll('.device-option');
+
+        function aplicar() {
+            const texto = q.value.trim().toLowerCase();
+            options.forEach(function (option) {
+                const coincideNombre = !texto || option.dataset.name.includes(texto);
+                const coincideCategoria = !categoria.value || option.dataset.category === categoria.value;
+                option.classList.toggle('hidden', !(coincideNombre && coincideCategoria));
+            });
+        }
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            aplicar();
+        });
+        document.getElementById('clear-filters').addEventListener('click', function (event) {
+            event.preventDefault();
+            q.value = '';
+            categoria.value = '';
+            aplicar();
+        });
+        q.addEventListener('input', aplicar);
+        categoria.addEventListener('change', aplicar);
+        aplicar();
+    })();
+</script>
+{% endblock %}

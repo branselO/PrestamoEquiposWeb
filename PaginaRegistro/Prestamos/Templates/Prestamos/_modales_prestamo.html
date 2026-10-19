@@ -1,0 +1,47 @@
+{% comment %}Modales de comentario y devolución de un préstamo. Requiere `prestamo` y `origen` ('prestamos' o 'pendientes').{% endcomment %}
+<dialog class="modal" id="comment-{{ prestamo.id }}">
+    <form method="post" action="{% url 'agregar_comentario' prestamo.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="origen" value="{{ origen }}">
+        <h2 class="text-xl font-bold tracking-tight">Agregar comentario #{{ prestamo.id }}</h2>
+        <label class="field-label mt-4" for="comentario-extra-{{ prestamo.id }}">Comentario</label>
+        <textarea id="comentario-extra-{{ prestamo.id }}" class="field min-h-28" name="comentarios" required placeholder="Escribe un comentario…"></textarea>
+        <div class="actions mt-5 sm:justify-end">
+            <button type="button" class="btn btn-secondary" data-close-return>Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar comentario</button>
+        </div>
+    </form>
+</dialog>
+
+{% if prestamo.estado_ticket != "Completado" %}
+<dialog class="modal" id="como-{{ prestamo.id }}">
+    <form method="post" action="{% url 'devolucion_como_usuario' prestamo.id %}" class="space-y-4" data-auth-form>
+        {% csrf_token %}
+        <input type="hidden" name="origen" value="{{ origen }}">
+        <h2 class="text-xl font-bold tracking-tight">Devolver como usuario #{{ prestamo.id }}</h2>
+        {% include 'Prestamos/_devolucion_detalles.html' %}
+        {% include 'Prestamos/_auth_campos.html' with prefijo=prestamo.id correo='' metodo='contrasena' %}
+        <div class="actions sm:justify-end">
+            <button type="button" class="btn btn-secondary" data-close-return>Cancelar</button>
+            <button type="submit" class="btn btn-primary">Verificar y devolver</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog class="modal" id="sin-{{ prestamo.id }}">
+    <form method="post" action="{% url 'devolucion_sin_usuario' prestamo.id %}" class="space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="origen" value="{{ origen }}">
+        <h2 class="text-xl font-bold tracking-tight">Devolver sin usuario #{{ prestamo.id }}</h2>
+        {% include 'Prestamos/_devolucion_detalles.html' %}
+        <div>
+            <label class="field-label" for="nombre-{{ prestamo.id }}">Nombre completo de quien devuelve</label>
+            <input id="nombre-{{ prestamo.id }}" class="field" type="text" name="nombre_completo" maxlength="150" required>
+        </div>
+        <div class="actions sm:justify-end">
+            <button type="button" class="btn btn-secondary" data-close-return>Cancelar</button>
+            <button type="submit" class="btn btn-primary">Confirmar devolución</button>
+        </div>
+    </form>
+</dialog>
+{% endif %}

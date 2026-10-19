@@ -1,0 +1,28 @@
+{% extends 'Usuarios/base.html' %}
+
+{% block title %}Préstamo registrado{% endblock %}
+
+{% block content %}
+<section class="space-y-6" aria-labelledby="loan-success-title">
+    <header>
+        <p class="kicker">Operación</p>
+        <h1 id="loan-success-title" class="page-title">Préstamo registrado</h1>
+    </header>
+
+    <div class="loan-message success" role="status">Préstamo #{{ prestamo.pk }} registrado correctamente.</div>
+
+    <div class="panel space-y-3 p-5 sm:p-6 text-sm text-slate-700">
+        <p>Solicitante: <strong class="text-slate-900">{{ prestamo.usuario_solicita.email }}</strong></p>
+        <p>Devolución esperada: <strong class="text-slate-900">{{ prestamo.fecha_devolucion_esperada|date:"d/m/Y" }}</strong></p>
+        <ul class="list-disc pl-5">
+            {% for detalle in prestamo.detalles.all %}
+                <li>{{ detalle.dispositivo.codigo_inventario }} — {{ detalle.dispositivo.nombre }}</li>
+            {% endfor %}
+        </ul>
+        <div class="actions">
+            <a href="{% url 'registrar_prestamo' %}" class="btn btn-primary">Registrar otro préstamo</a>
+            <a href="{% url 'prestamos' %}" class="btn btn-secondary">Ver préstamos</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

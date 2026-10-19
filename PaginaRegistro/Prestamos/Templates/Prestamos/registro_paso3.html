@@ -1,0 +1,40 @@
+{% extends 'Usuarios/base.html' %}
+
+{% block title %}Registrar préstamo · Paso 3{% endblock %}
+
+{% block content %}
+<section class="space-y-6" aria-labelledby="loan-register-title">
+    <header>
+        <p class="kicker">Operación</p>
+        <h1 id="loan-register-title" class="page-title">Registrar préstamo</h1>
+        <p class="page-lead">Paso 3 de 3: revisa el resumen y define la fecha estimada de devolución.</p>
+    </header>
+
+    {% include 'Prestamos/_registro_pasos.html' %}
+
+    <div class="panel space-y-5 p-5 sm:p-6">
+        <p class="text-sm text-slate-600">Solicitante: <strong class="text-slate-900">{{ solicitante.email }}</strong></p>
+
+        <ul class="grid gap-2">
+            {% for dispositivo in dispositivos %}
+                <li class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                    <strong class="text-slate-900">{{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}</strong>
+                    {% if dispositivo.categoria %}<span class="text-slate-500"> · {{ dispositivo.categoria.nombre }}</span>{% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+
+        <form class="space-y-4" method="post">
+            {% csrf_token %}
+            <div>
+                <label class="field-label" for="fecha-devolucion">Fecha estimada de devolución</label>
+                <input id="fecha-devolucion" class="field max-w-md" type="date" name="fecha_devolucion" min="{{ fecha_minima }}" required>
+            </div>
+            <div class="actions">
+                <a href="{% url 'registrar_prestamo_paso2' %}" class="btn btn-secondary">Atrás</a>
+                <button type="submit" class="btn btn-primary">Confirmar préstamo</button>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

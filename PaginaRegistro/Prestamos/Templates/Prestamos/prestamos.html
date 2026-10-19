@@ -1,4 +1,4 @@
-{% extends 'Usuarios/base.html' %}
+﻿{% extends 'Usuarios/base.html' %}
 
 {% block title %}Administración de préstamos{% endblock %}
 
@@ -17,14 +17,14 @@
     {% if usuario_filtrado %}
         <div class="notice">
             <p>Mostrando únicamente los préstamos pendientes de <strong>{{ usuario_filtrado.nombre }} {{ usuario_filtrado.apellidos }}</strong>.</p>
-            <a href="{% url 'prestamos' %}" class="font-semibold text-teal-800 underline-offset-4 transition-all duration-300 hover:underline">Ver todos</a>
+            <a href="{% url 'prestamos' %}" class="font-semibold text-unam-600 underline-offset-4 transition-all duration-300 hover:text-gold-600 hover:underline">Ver todos</a>
         </div>
     {% endif %}
 
     {% if codigo_inventario %}
         <div class="notice">
             <p>Mostrando únicamente el préstamo pendiente del dispositivo <strong>{{ codigo_inventario }}{% if dispositivo_filtrado %} — {{ dispositivo_filtrado.nombre }}{% endif %}</strong>.</p>
-            <a href="{% url 'prestamos' %}" class="font-semibold text-teal-800 underline-offset-4 transition-all duration-300 hover:underline">Ver todos</a>
+            <a href="{% url 'prestamos' %}" class="font-semibold text-unam-600 underline-offset-4 transition-all duration-300 hover:text-gold-600 hover:underline">Ver todos</a>
         </div>
     {% endif %}
 
@@ -42,6 +42,7 @@
     </form>
 
     <div class="toolbar">
+        <a href="{% url 'devolucion_login' %}" class="btn btn-primary">Registrar devolución</a>
         <a href="{% url 'registrar_prestamo' %}" class="btn btn-primary">Registrar préstamo</a>
     </div>
 
@@ -49,14 +50,14 @@
         {% for prestamo in prestamos %}
             <details class="record">
                 <summary>
-                    <span class="font-mono text-sm font-bold text-teal-800">#{{ prestamo.id }}</span>
+                    <span class="font-mono text-sm font-bold text-unam-600">#{{ prestamo.id }}</span>
                     <span class="min-w-0 flex-1 basis-full font-semibold text-slate-900 sm:basis-auto">{{ prestamo.fecha_salida|date:"d/m/Y H:i" }}</span>
                     {% if prestamo.estado_ticket == "Completado" %}
                         <span class="badge completado">Completado</span>
                     {% else %}
                         <span class="badge pendiente">Pendiente</span>
                     {% endif %}
-                    <span class="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-teal-800 sm:ml-0">
+                    <span class="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-unam-600 transition-all duration-300 group-hover:text-gold-600 sm:ml-0">
                         <span class="when-closed">Ver más</span>
                         <span class="when-open">Ver menos</span>
                         <svg class="chevron h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
@@ -73,7 +74,13 @@
                             {% for detalle in prestamo.detalles.all %}
                                 <p>
                                     {% if detalle.fecha_devuelto %}
-                                        {{ detalle.dispositivo.codigo_inventario }} — devuelto por {{ detalle.nombre_externo_devuelve|default:"—" }} el {{ detalle.fecha_devuelto|date:"d/m/Y H:i" }}
+                                        {{ detalle.dispositivo.codigo_inventario }} — Devuelto por
+                                        {% if detalle.usuario_devuelve %}
+                                            <a href="{% url 'perfil_usuario' detalle.usuario_devuelve.id %}" class="font-semibold text-unam-600 underline underline-offset-2 transition-all duration-300 hover:text-gold-600">{{ detalle.usuario_devuelve.nombre }}  {{ detalle.usuario_devuelve.apellidos }}</a>
+                                        {% else %}
+                                            {{ detalle.nombre_externo_devuelve|default:"—" }}
+                                        {% endif %}
+                                        el {{ detalle.fecha_devuelto|date:"d/m/Y H:i" }}
                                     {% else %}
                                         {{ detalle.dispositivo.codigo_inventario }} — EN USO
                                     {% endif %}
@@ -91,67 +98,17 @@
                         <a href="{% url 'registrar_sancion' %}?prestamo={{ prestamo.id }}" class="btn btn-secondary">Registrar sanción</a>
                         <button type="button" class="btn btn-secondary" data-open-return="comment-{{ prestamo.id }}">Agregar comentario</button>
                         {% if prestamo.estado_ticket != "Completado" %}
-                            <button type="button" class="btn btn-primary" data-open-return="return-{{ prestamo.id }}">Registrar devolución</button>
+                            <button type="button" class="btn btn-primary" data-open-return="como-{{ prestamo.id }}">Devolver como usuario</button>
+                            <button type="button" class="btn btn-primary" data-open-return="sin-{{ prestamo.id }}">Devolver sin usuario</button>
                         {% endif %}
                     </div>
                 </dl>
             </details>
-            <dialog class="modal" id="comment-{{ prestamo.id }}">
-                <form method="post" action="{% url 'agregar_comentario' prestamo.id %}">
-                    {% csrf_token %}
-                    <h2 class="text-xl font-bold tracking-tight">Agregar comentario #{{ prestamo.id }}</h2>
-                    <label class="field-label mt-4" for="comentario-extra-{{ prestamo.id }}">Comentario</label>
-                    <textarea id="comentario-extra-{{ prestamo.id }}" class="field min-h-28" name="comentarios" required placeholder="Escribe un comentario…"></textarea>
-                    <div class="actions mt-5 sm:justify-end">
-                        <button type="button" class="btn btn-secondary" data-close-return>Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Guardar comentario</button>
-                    </div>
-                </form>
-            </dialog>
-            {% if prestamo.estado_ticket != "Completado" %}
-            <dialog class="modal" id="return-{{ prestamo.id }}">
-                <form method="post" action="{% url 'registrar_devolucion' prestamo.id %}">
-                    {% csrf_token %}
-                    <h2 class="text-xl font-bold tracking-tight">Registrar devolución #{{ prestamo.id }}</h2>
-                    <p class="mt-2 text-sm leading-relaxed text-slate-600">Marca los dispositivos que se devuelven e indica quién los entrega.</p>
-                    <div class="mt-4">
-                        {% for detalle in prestamo.detalles.all %}
-                            {% if not detalle.fecha_devuelto %}
-                                <div class="flex flex-col gap-3 border-b border-slate-200 py-3 last:border-0 sm:flex-row sm:items-center">
-                                    <label class="flex flex-1 items-start gap-3 text-sm font-semibold text-slate-800">
-                                        <input type="checkbox" class="mt-0.5 h-4 w-4 accent-teal-800" name="detalles" value="{{ detalle.id }}" checked>
-                                        <span>{{ detalle.dispositivo.codigo_inventario }} — {{ detalle.dispositivo.nombre }}</span>
-                                    </label>
-                                    <input type="text" class="field sm:max-w-xs" name="entrega_{{ detalle.id }}" value="{{ prestamo.usuario_solicita.nombre }} {{ prestamo.usuario_solicita.apellidos }}" placeholder="Quién lo entrega" aria-label="Quién entrega {{ detalle.dispositivo.codigo_inventario }}">
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                    <label class="field-label mt-4" for="comentarios-{{ prestamo.id }}">Comentarios del préstamo</label>
-                    <textarea id="comentarios-{{ prestamo.id }}" class="field min-h-28" name="comentarios" placeholder="Ej: Pantalla rayada, cargador incompleto…"></textarea>
-                    <div class="actions mt-5 sm:justify-end">
-                        <button type="button" class="btn btn-secondary" data-close-return>Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Confirmar devolución</button>
-                    </div>
-                </form>
-            </dialog>
-            {% endif %}
+            {% include 'Prestamos/_modales_prestamo.html' with origen='prestamos' %}
         {% empty %}
             <div class="empty">No se encontraron préstamos.</div>
         {% endfor %}
     </div>
 </section>
-<script>
-    document.querySelectorAll('[data-open-return]').forEach((button) => {
-        button.addEventListener('click', () => document.getElementById(button.dataset.openReturn).showModal());
-    });
-    document.querySelectorAll('[data-close-return]').forEach((button) => {
-        button.addEventListener('click', () => button.closest('dialog').close());
-    });
-    document.querySelectorAll('dialog.modal').forEach((dialog) => {
-        dialog.addEventListener('click', (event) => {
-            if (event.target === dialog) dialog.close();
-        });
-    });
-</script>
+{% include 'Prestamos/_modales_js.html' %}
 {% endblock %}

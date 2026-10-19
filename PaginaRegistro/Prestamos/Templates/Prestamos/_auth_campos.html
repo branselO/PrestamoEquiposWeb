@@ -1,0 +1,16 @@
+<div>
+    <label class="field-label" for="correo-{{ prefijo }}">Correo</label>
+    <input id="correo-{{ prefijo }}" class="field max-w-md" type="email" name="correo" value="{{ correo|default:'' }}" required autocomplete="email">
+</div>
+<fieldset class="space-y-3 border-0 p-0" data-auth-fields>
+    <legend class="mb-2 text-sm font-semibold text-slate-800">Método de autenticación</legend>
+    <div class="flex flex-wrap gap-4 text-sm">
+        <label class="flex items-center gap-2"><input type="radio" class="accent-unam-600" name="metodo" value="contrasena" {% if metodo != 'huella' %}checked{% endif %}> Contraseña</label>
+        <label class="flex items-center gap-2"><input type="radio" class="accent-unam-600" name="metodo" value="huella" {% if metodo == 'huella' %}checked{% endif %}> Huella digital</label>
+    </div>
+    <div data-auth-pass>
+        <label class="field-label" for="contrasena-{{ prefijo }}">Contraseña</label>
+        <input id="contrasena-{{ prefijo }}" class="field max-w-md" type="password" name="contrasena" autocomplete="current-password">
+    </div>
+    <p data-auth-huella class="hidden text-sm text-slate-600">Al continuar, coloca el dedo en el sensor.</p>
+</fieldset>

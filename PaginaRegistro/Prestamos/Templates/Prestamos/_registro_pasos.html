@@ -1,0 +1,14 @@
+<ol class="grid gap-3 sm:grid-cols-3" aria-label="Progreso del registro">
+    {% for n, titulo in pasos %}
+        <li class="rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-300 {% if n == paso %}border-gold-400 bg-unam-600 text-white{% elif n < paso %}border-unam-600 bg-white text-unam-600{% else %}border-slate-200 bg-slate-50 text-slate-500{% endif %}" {% if n == paso %}aria-current="step"{% endif %}>
+            <span class="mr-2">{{ n }}.</span>{{ titulo }}
+        </li>
+    {% endfor %}
+</ol>
+
+{% for message in messages %}
+    <div class="loan-message {% if message.tags == 'error' %}error{% else %}success{% endif %}" role="alert">{{ message }}</div>
+{% endfor %}
+{% if registro_error %}
+    <div class="loan-message error" role="alert">{{ registro_error }}</div>
+{% endif %}

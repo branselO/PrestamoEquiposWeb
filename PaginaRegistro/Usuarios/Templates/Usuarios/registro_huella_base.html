@@ -7,10 +7,10 @@
     <title>{% block title %}Registro biométrico{% endblock %}</title>
     {% include 'Usuarios/_assets.html' %}
 </head>
-<body class="flex min-h-screen items-center justify-center bg-slate-100 bg-[radial-gradient(ellipse_at_top,rgba(15,118,110,0.18),transparent_55%)] px-4 py-10 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+<body class="flex min-h-screen items-center justify-center bg-paper px-4 py-10 font-sans text-ink antialiased dark:bg-unam-900 dark:text-slate-100">
     {% include 'Usuarios/_theme_toggle.html' with theme_toggle_class='fixed left-4 top-4 z-40' %}
     <div class="auth-card relative max-w-md">
-        <a href="{% block back_url %}{% url 'register_Staff' %}{% endblock %}" class="absolute right-5 top-5 text-sm font-semibold text-teal-800 transition-all duration-300 hover:text-teal-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-800/15 dark:text-teal-300 dark:hover:text-teal-200">← Regresar</a>
+        <a href="{% block back_url %}{% url 'register_Staff' %}{% endblock %}" class="absolute right-5 top-5 text-sm font-semibold text-unam-600 transition-all duration-300 hover:text-gold-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-unam-600/15">← Regresar</a>
         <div class="mb-6 flex justify-center pt-4">
             <span class="brand-mark">PE</span>
         </div>

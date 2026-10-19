@@ -1,15 +1,13 @@
-from django.contrib.auth import get_user_model
+﻿from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
 from django.http import JsonResponse
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 from django.views.generic import TemplateView, View
 
-from Inventario.models import Categoria, Dispositivo
-from Usuarios.hardware import get_sensor, verify_fingerprint_from_db
+from Inventario.models import Dispositivo
 from .models import DetallePrestamo, Prestamo, Sancion
 
 
@@ -71,262 +69,6 @@ class adminPrestamoView(StaffRequiredMixin, TemplateView):
         return context
 
 
-class RegistrarPrestamoView(StaffRequiredMixin, TemplateView):
-    template_name = 'Prestamos/registrar_prestamo.html'
-    PENDING_LOAN_SESSION_KEY = 'prestamo_pendiente'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        q = self.request.GET.get('q', '').strip()
-        categoria = self.request.GET.get('categoria', '')
-
-        disponibles = Dispositivo.objects.filter(
-            estado='disponible'
-        ).select_related('categoria').order_by('codigo_inventario')
-        if q:
-            disponibles = disponibles.filter(nombre__icontains=q)
-        if categoria.isdigit():
-            disponibles = disponibles.filter(categoria_id=int(categoria))
-
-        context.update({
-            'dispositivos_disponibles': disponibles,
-            'categorias': Categoria.objects.all(),
-            'q': q,
-            'categoria_sel': categoria,
-            'registro_step': 'seleccion',
-        })
-
-        pendiente = self.request.session.get(self.PENDING_LOAN_SESSION_KEY)
-        if pendiente:
-            ids_dispositivos = pendiente.get('dispositivo_ids', [])
-            dispositivos = Dispositivo.objects.filter(
-                pk__in=ids_dispositivos,
-                estado='disponible',
-            ).select_related('categoria').order_by('codigo_inventario')
-
-            if len(ids_dispositivos) != dispositivos.count():
-                self.request.session.pop(self.PENDING_LOAN_SESSION_KEY, None)
-                context['registro_error'] = (
-                    'Uno o más dispositivos ya no están disponibles. Inicia el registro de nuevo.'
-                )
-            else:
-                context.update({
-                    'registro_step': 'solicitante',
-                    'dispositivos_seleccionados': dispositivos,
-                })
-                usuario_id = pendiente.get('usuario_id')
-                if usuario_id:
-                    usuario = get_user_model().objects.filter(
-                        pk=usuario_id,
-                        is_active=True,
-                    ).first()
-                    if (
-                        usuario
-                        and not usuario.mis_sanciones.filter(estado='activa').exists()
-                    ):
-                        context.update({
-                            'registro_step': 'identidad',
-                            'solicitante': usuario,
-                        })
-                    else:
-                        self.request.session.pop(self.PENDING_LOAN_SESSION_KEY, None)
-                        context['registro_step'] = 'seleccion'
-                        context['registro_error'] = (
-                            'El solicitante tiene sanciones activas o ya no está disponible. '
-                            'Inicia el registro de nuevo.'
-                        )
-
-        return context
-
-    def post(self, request):
-        accion = request.POST.get('accion')
-        if accion == 'seleccionar_dispositivos':
-            return self.seleccionar_dispositivos(request)
-        if accion == 'validar_solicitante':
-            return self.validar_solicitante(request)
-        if accion == 'cancelar':
-            request.session.pop(self.PENDING_LOAN_SESSION_KEY, None)
-            return self.render_page()
-        if accion == 'confirmar_identidad':
-            return self.confirmar_identidad(request)
-        return self.render_page(registro_error='La acción solicitada no es válida.')
-
-    def seleccionar_dispositivos(self, request):
-        ids_recibidos = request.POST.getlist('dispositivos')
-        if not ids_recibidos or any(not item.isdigit() for item in ids_recibidos):
-            return self.render_page(
-                registro_error='Selecciona al menos un dispositivo disponible.'
-            )
-
-        ids_dispositivos = list(dict.fromkeys(int(item) for item in ids_recibidos))
-        dispositivos = Dispositivo.objects.filter(
-            pk__in=ids_dispositivos,
-            estado='disponible',
-        )
-        if dispositivos.count() != len(ids_dispositivos):
-            return self.render_page(
-                registro_error='Uno o más dispositivos ya no están disponibles. Actualiza la página.'
-            )
-
-        fecha_devolucion = parse_datetime(
-            request.POST.get('fecha_devolucion_esperada', '').strip()
-        )
-        if fecha_devolucion is None:
-            return self.render_page(
-                registro_error='Ingresa una fecha de devolución válida.'
-            )
-        if timezone.is_naive(fecha_devolucion):
-            fecha_devolucion = timezone.make_aware(fecha_devolucion)
-        if fecha_devolucion <= timezone.now():
-            return self.render_page(
-                registro_error='La fecha de devolución debe ser posterior a la fecha actual.'
-            )
-
-        request.session[self.PENDING_LOAN_SESSION_KEY] = {
-            'dispositivo_ids': ids_dispositivos,
-            'fecha_devolucion_esperada': fecha_devolucion.isoformat(),
-        }
-        return self.render_page()
-
-    def validar_solicitante(self, request):
-        pendiente = request.session.get(self.PENDING_LOAN_SESSION_KEY)
-        if not pendiente:
-            return self.render_page(
-                registro_error='La sesión de registro caducó. Selecciona los dispositivos de nuevo.'
-            )
-
-        User = get_user_model()
-        correo = request.POST.get('correo', '').strip()
-        solicitante = User.objects.filter(email__iexact=correo, is_active=True).first()
-        if solicitante is None:
-            return self.render_page(
-                registro_error='No se encontró un usuario activo con ese correo.'
-            )
-
-        if solicitante.mis_sanciones.filter(estado='activa').exists():
-            request.session.pop(self.PENDING_LOAN_SESSION_KEY, None)
-            return self.render_page(
-                registro_error='El solicitante tiene sanciones activas y no puede pedir préstamos.'
-            )
-
-        pendiente['usuario_id'] = solicitante.pk
-        request.session[self.PENDING_LOAN_SESSION_KEY] = pendiente
-        return self.render_page()
-
-    def confirmar_identidad(self, request):
-        pendiente = request.session.get(self.PENDING_LOAN_SESSION_KEY)
-        if not pendiente:
-            return self.render_page(
-                registro_error='La sesión de registro caducó. Inicia el proceso de nuevo.'
-            )
-
-        User = get_user_model()
-        solicitante = User.objects.filter(
-            pk=pendiente.get('usuario_id'),
-            is_active=True,
-        ).first()
-        if solicitante is None:
-            request.session.pop(self.PENDING_LOAN_SESSION_KEY, None)
-            return self.render_page(
-                registro_error='No se encontró un usuario activo. Inicia el proceso de nuevo.'
-            )
-        if solicitante.mis_sanciones.filter(estado='activa').exists():
-            request.session.pop(self.PENDING_LOAN_SESSION_KEY, None)
-            return self.render_page(
-                registro_error='El solicitante tiene sanciones activas y no puede pedir préstamos.'
-            )
-
-        metodo = request.POST.get('metodo_identidad')
-        if metodo == 'contrasena':
-            identidad_verificada = solicitante.check_password(
-                request.POST.get('contrasena', '')
-            )
-            if not identidad_verificada:
-                return self.render_page(
-                    registro_error='La contraseña no es correcta.'
-                )
-        elif metodo == 'huella':
-            if not solicitante.huella_template:
-                return self.render_page(
-                    registro_error='El usuario no tiene una huella registrada.'
-                )
-
-            uart = None
-            try:
-                sensor, uart = get_sensor()
-                identidad_verificada = verify_fingerprint_from_db(
-                    sensor,
-                    solicitante.huella_template,
-                )
-            except (OSError, RuntimeError) as error:
-                return self.render_page(
-                    registro_error=f'No se pudo verificar la huella: {error}'
-                )
-            finally:
-                if uart and uart.is_open:
-                    uart.close()
-
-            if not identidad_verificada:
-                return self.render_page(
-                    registro_error='La huella no coincide.'
-                )
-        else:
-            return self.render_page(
-                registro_error='Selecciona la contraseña o la huella para verificar la identidad.'
-            )
-
-        try:
-            with transaction.atomic():
-                dispositivos = list(
-                    Dispositivo.objects.select_for_update().filter(
-                        pk__in=pendiente['dispositivo_ids'],
-                        estado='disponible',
-                    ).order_by('pk')
-                )
-                if len(dispositivos) != len(pendiente['dispositivo_ids']):
-                    raise ValueError(
-                        'Uno o más dispositivos ya no están disponibles. Inicia el registro de nuevo.'
-                    )
-
-                solicitante = User.objects.select_for_update().get(
-                    pk=solicitante.pk,
-                    is_active=True,
-                )
-                if solicitante.mis_sanciones.filter(estado='activa').exists():
-                    raise ValueError(
-                        'El solicitante tiene sanciones activas y no puede pedir préstamos.'
-                    )
-
-                fecha_devolucion = parse_datetime(
-                    pendiente['fecha_devolucion_esperada']
-                )
-                prestamo = Prestamo.objects.create(
-                    usuario_solicita=solicitante,
-                    staff_autoriza=request.user,
-                    fecha_devolucion_esperada=fecha_devolucion,
-                )
-                DetallePrestamo.objects.bulk_create([
-                    DetallePrestamo(prestamo=prestamo, dispositivo=dispositivo)
-                    for dispositivo in dispositivos
-                ])
-                Dispositivo.objects.filter(
-                    pk__in=[dispositivo.pk for dispositivo in dispositivos]
-                ).update(estado='prestado')
-        except (ValueError, User.DoesNotExist) as error:
-            request.session.pop(self.PENDING_LOAN_SESSION_KEY, None)
-            return self.render_page(registro_error=str(error))
-
-        request.session.pop(self.PENDING_LOAN_SESSION_KEY, None)
-        return self.render_page(
-            registro_exito=f'Préstamo #{prestamo.pk} registrado correctamente.'
-        )
-
-    def render_page(self, **extra_context):
-        context = self.get_context_data()
-        context.update(extra_context)
-        return self.render_to_response(context)
-
-
 class RegistrarDevolucionView(StaffRequiredMixin, View):
     http_method_names = ['post']
 
@@ -379,6 +121,8 @@ class AgregarComentarioView(StaffRequiredMixin, View):
             messages.success(request, 'Comentario agregado.')
         else:
             messages.error(request, 'Escribe un comentario.')
+        if request.POST.get('origen') == 'pendientes':
+            return redirect('devolucion_pendientes')
         return redirect('prestamos')
 
 

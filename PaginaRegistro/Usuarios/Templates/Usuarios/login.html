@@ -7,7 +7,7 @@
     <title>Iniciar sesión</title>
     {% include 'Usuarios/_assets.html' %}
 </head>
-<body class="min-h-screen bg-slate-100 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+<body class="min-h-screen bg-paper font-sans text-ink antialiased dark:bg-unam-900 dark:text-slate-100">
     {% include 'Usuarios/_theme_toggle.html' with theme_toggle_class='fixed right-4 top-4 z-40' %}
     <div class="grid min-h-screen lg:grid-cols-2">
         {% include 'Usuarios/_auth_aside.html' %}
@@ -29,7 +29,7 @@
                 </form>
                 <p class="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
                     ¿No tienes una cuenta?
-                    <a href="{% url 'register_Staff' %}" class="font-semibold text-teal-800 underline-offset-4 transition-all duration-300 hover:text-teal-950 hover:underline dark:text-teal-300 dark:hover:text-teal-200">Regístrate aquí</a>
+                    <a href="{% url 'register_Staff' %}" class="font-semibold text-unam-600 underline-offset-4 transition-all duration-300 hover:text-gold-600 hover:underline">Regístrate aquí</a>
                 </p>
             </div>
         </main>

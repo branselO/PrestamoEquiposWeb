@@ -1,0 +1,22 @@
+<script>
+    document.querySelectorAll('[data-open-return]').forEach((button) => {
+        button.addEventListener('click', () => document.getElementById(button.dataset.openReturn).showModal());
+    });
+    document.querySelectorAll('[data-close-return]').forEach((button) => {
+        button.addEventListener('click', () => button.closest('dialog').close());
+    });
+    document.querySelectorAll('dialog.modal').forEach((dialog) => {
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) dialog.close();
+        });
+    });
+    document.querySelectorAll('[data-auth-form]').forEach((form) => {
+        const actualizar = () => {
+            const huella = form.elements['metodo'].value === 'huella';
+            form.querySelector('[data-auth-pass]').classList.toggle('hidden', huella);
+            form.querySelector('[data-auth-huella]').classList.toggle('hidden', !huella);
+        };
+        form.addEventListener('change', actualizar);
+        actualizar();
+    });
+</script>
