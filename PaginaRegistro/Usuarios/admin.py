@@ -42,11 +42,12 @@ class ProgramaAdmin(admin.ModelAdmin):
     list_display = ('clave', 'nombre')
     search_fields = ('clave', 'nombre')
 
+    # ESTA LÍNEA CAMBIA TODA LA INTERFAZ:
+    filter_horizontal = ('entidades_academicas',)
+
 # 2. Registramos la Entidad Académica con la MAGIA de filter_horizontal
 @admin.register(EntidadAcademica)
 class EntidadAcademicaAdmin(admin.ModelAdmin):
     list_display = ('clave', 'nombre')
     search_fields = ('clave', 'nombre')
     
-    # ESTA LÍNEA CAMBIA TODA LA INTERFAZ:
-    filter_horizontal = ('programas_impartidos',)

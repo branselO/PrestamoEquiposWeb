@@ -1,5 +1,5 @@
 from django.contrib.auth.forms import UserCreationForm
-from .models import CustomUser, Programa
+from .models import CustomUser, EntidadAcademica, Programa
 from django.contrib.auth.forms import AuthenticationForm
 from django import forms
 
@@ -19,24 +19,26 @@ class AcademicProgramFormMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        entity_id = (
-            self.data.get('entidad_academica')
+        program_id = (
+            self.data.get('programa')
             if self.is_bound
             else self.initial.get(
-                'entidad_academica',
-                getattr(self.instance, 'entidad_academica_id', None),
+                'programa',
+                getattr(self.instance, 'programa_id', None),
             )
         )
-        self.fields['programa'].queryset = Programa.objects.none()
-        self.fields['programa'].widget.attrs['disabled'] = True
-        self.fields['programa'].empty_label = 'Selecciona una entidad primero'
+        self.fields['programa'].queryset = Programa.objects.order_by('nombre')
+        self.fields['programa'].empty_label = 'Selecciona un programa'
+        self.fields['entidad_academica'].queryset = EntidadAcademica.objects.none()
+        self.fields['entidad_academica'].widget.attrs['disabled'] = True
+        self.fields['entidad_academica'].empty_label = 'Selecciona un programa primero'
 
-        if entity_id:
-            self.fields['programa'].queryset = Programa.objects.filter(
-                entidades__pk=entity_id
+        if program_id:
+            self.fields['entidad_academica'].queryset = EntidadAcademica.objects.filter(
+                programas_impartidos__pk=program_id
             ).distinct().order_by('nombre')
-            self.fields['programa'].widget.attrs.pop('disabled', None)
-            self.fields['programa'].empty_label = 'Selecciona un programa'
+            self.fields['entidad_academica'].widget.attrs.pop('disabled', None)
+            self.fields['entidad_academica'].empty_label = 'Selecciona una entidad académica'
 
 
 class StaffSignUpForm(AcademicProgramFormMixin, UserCreationForm):
@@ -53,8 +55,8 @@ class StaffSignUpForm(AcademicProgramFormMixin, UserCreationForm):
             'genero',
             'direccion',
             'telefono_celular',
-            'entidad_academica',
             'programa',
+            'entidad_academica',
         )
 
     def save(self, commit=True):
@@ -80,8 +82,8 @@ class NormalUserCreationForm(AcademicProgramFormMixin, UserCreationForm):
             'genero',
             'direccion',
             'telefono_celular',
-            'entidad_academica',
             'programa',
+            'entidad_academica',
         )
 
 class StaffAuthenticationForm(AuthenticationForm):

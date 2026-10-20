@@ -132,12 +132,15 @@ class RegistrarPrestamoPaso2View(WizardStepMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         q = self.request.GET.get('q', '').strip()
+        codigo = self.request.GET.get('codigo', '').strip()
         categoria = self.request.GET.get('categoria', '')
         disponibles = Dispositivo.objects.filter(
             estado='disponible'
         ).select_related('categoria').order_by('codigo_inventario')
         if q:
             disponibles = disponibles.filter(nombre__icontains=q)
+        if codigo:
+            disponibles = disponibles.filter(codigo_inventario__icontains=codigo)
         if categoria.isdigit():
             disponibles = disponibles.filter(categoria_id=int(categoria))
         context.update({
@@ -145,6 +148,7 @@ class RegistrarPrestamoPaso2View(WizardStepMixin, TemplateView):
             'dispositivos_disponibles': disponibles,
             'categorias': Categoria.objects.all(),
             'q': q,
+            'codigo': codigo,
             'categoria_sel': categoria,
             'seleccionados': _wizard(self.request).get('dispositivo_ids', []),
         })

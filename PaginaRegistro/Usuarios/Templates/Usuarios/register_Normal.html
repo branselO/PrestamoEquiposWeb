@@ -10,11 +10,11 @@
         <h1 class="page-title">Registrar usuario</h1>
         <p class="page-lead">Como miembro del staff, puedes registrar cuentas estándar desde aquí.</p>
     </header>
-    <form class="form-stack panel p-5 sm:p-6" method="post" data-programs-url="{% url 'programas_por_entidad' %}">
+    <form class="form-stack panel p-5 sm:p-6" method="post" data-entities-url="{% url 'entidades_por_programa' %}">
         {% csrf_token %}
         {{ form.as_p }}
         <button type="submit" class="btn btn-primary btn-block">Crear cuenta normal</button>
     </form>
 </section>
-<script src="{% static 'Usuarios/js/programas_por_entidad.js' %}" defer></script>
+<script src="{% static 'Usuarios/js/entidades_por_programa.js' %}" defer></script>
 {% endblock %}

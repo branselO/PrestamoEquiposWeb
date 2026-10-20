@@ -102,31 +102,10 @@ class NormalUser(CustomUser):
 
 ##### MODELOS ACADÉMICOS (PROGRAMAS Y ENTIDADES ACADÉMICAS) #####
 
-class Programa(models.Model):
-    clave = models.CharField(max_length=20, unique=True, verbose_name="Clave del Programa")
-    nombre = models.CharField(max_length=150, verbose_name="Nombre del Programa")
-    nombre_corto = models.CharField(max_length=50, blank=True, null=True)
-
-    class Meta:
-        verbose_name = "Programa Académico"
-        verbose_name_plural = "Programas Académicos"
-
-    def __str__(self):
-        return f"{self.clave} - {self.nombre}"
-
-
 class EntidadAcademica(models.Model):
     clave = models.CharField(max_length=20, unique=True, verbose_name="Clave (Ej. FI, IIMAS)")
     nombre = models.CharField(max_length=150, verbose_name="Nombre de la Entidad")
     director = models.CharField(max_length=150, blank=True, null=True, verbose_name="Director de la Entidad")
-    # ¡AQUÍ ESTÁ LA MAGIA! Esto reemplaza por completo a CPROGRAMAS_EA
-    # Django creará la tabla puente en PostgreSQL automáticamente.
-    programas_impartidos = models.ManyToManyField(
-        Programa, 
-        related_name='entidades', 
-        blank=True,
-        verbose_name="Programas que imparte esta Entidad"
-    )
 
     class Meta:
         verbose_name = "Entidad Académica"
@@ -134,3 +113,22 @@ class EntidadAcademica(models.Model):
 
     def __str__(self):
         return self.nombre
+
+class Programa(models.Model):
+    clave = models.CharField(max_length=20, unique=True, verbose_name="Clave del Programa")
+    nombre = models.CharField(max_length=150, verbose_name="Nombre del Programa")
+    nombre_corto = models.CharField(max_length=50, blank=True, null=True)
+
+    entidades_academicas = models.ManyToManyField(
+        EntidadAcademica,
+        related_name='programas_impartidos',
+        blank=True,
+        verbose_name="Entidades Académicas que imparten este Programa"
+    )
+
+    class Meta:
+        verbose_name = "Programa Académico"
+        verbose_name_plural = "Programas Académicos"
+
+    def __str__(self):
+        return f"{self.clave} - {self.nombre}"

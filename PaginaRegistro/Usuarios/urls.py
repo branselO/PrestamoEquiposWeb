@@ -12,9 +12,9 @@ urlpatterns = [
     path('register/', views.SignUpView.as_view(), name='register_Staff'),
     path('crear_usuario/', views.RegisterNormalUserView.as_view(), name='register_Normal'),
     path(
-        'api/programas-por-entidad/',
-        views.programas_por_entidad,
-        name='programas_por_entidad',
+        'api/entidades-por-programa/',
+        views.entidades_por_programa,
+        name='entidades_por_programa',
     ),
 
     # 3. Rutas de la API Biométrica (Hardware AS608)
