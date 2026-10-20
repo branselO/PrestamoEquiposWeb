@@ -7,32 +7,41 @@
     <header>
         <p class="kicker">Operación</p>
         <h1 id="loan-register-title" class="page-title">Registrar préstamo</h1>
-        <p class="page-lead">Paso 3 de 3: revisa el resumen y define la fecha estimada de devolución.</p>
+        <p class="page-lead">Paso 3 de 3: revisa el resumen y confirma la fecha de devolución.</p>
     </header>
 
     {% include 'Prestamos/_registro_pasos.html' %}
 
-    <div class="panel space-y-5 p-5 sm:p-6">
-        <p class="text-sm text-slate-600">Solicitante: <strong class="text-slate-900">{{ solicitante.email }}</strong></p>
-
-        <ul class="grid gap-2">
-            {% for dispositivo in dispositivos %}
-                <li class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                    <strong class="text-slate-900">{{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}</strong>
-                    {% if dispositivo.categoria %}<span class="text-slate-500"> · {{ dispositivo.categoria.nombre }}</span>{% endif %}
-                </li>
-            {% endfor %}
-        </ul>
-
-        <form class="space-y-4" method="post">
-            {% csrf_token %}
+    <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(18rem,0.8fr)]">
+        <div class="panel space-y-5 p-5 sm:p-6">
+            <p class="kicker">Resumen</p>
+            {% include 'Prestamos/_persona.html' with etiqueta='Solicitante' nombre=solicitante.nombre apellidos=solicitante.apellidos email=solicitante.email %}
             <div>
-                <label class="field-label" for="fecha-devolucion">Fecha estimada de devolución</label>
-                <input id="fecha-devolucion" class="field max-w-md" type="date" name="fecha_devolucion" min="{{ fecha_minima }}" required>
+                <p class="mb-2 text-sm font-semibold text-ink dark:text-slate-100">Equipos ({{ dispositivos|length }})</p>
+                <ul class="grid gap-2">
+                    {% for dispositivo in dispositivos %}
+                        <li class="rounded-xl border border-slate-200 border-l-4 border-l-gold-400 bg-white px-4 py-3 text-sm dark:border-slate-600 dark:bg-slate-800">
+                            <span class="font-mono text-xs font-bold text-unam-600 dark:text-blue-300">{{ dispositivo.codigo_inventario }}</span>
+                            <p class="mt-1 font-semibold text-slate-900 dark:text-slate-100">{{ dispositivo.nombre }}</p>
+                            {% if dispositivo.categoria %}<p class="text-slate-500 dark:text-slate-300">{{ dispositivo.categoria.nombre }}</p>{% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <form class="panel space-y-4 border-t-4 border-t-gold-400 p-5 sm:p-6" method="post">
+            {% csrf_token %}
+            <p class="kicker">Confirmación</p>
+            <h2 class="text-lg font-bold tracking-tight text-unam-600 dark:text-blue-300">Fecha de devolución</h2>
+            <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-300">El préstamo se registra hasta el final del día que elijas.</p>
+            <div>
+                <label class="field-label" for="fecha-devolucion">Fecha estimada</label>
+                <input id="fecha-devolucion" class="field" type="date" name="fecha_devolucion" min="{{ fecha_minima }}" required>
             </div>
             <div class="actions">
-                <a href="{% url 'registrar_prestamo_paso2' %}" class="btn btn-secondary">Atrás</a>
-                <button type="submit" class="btn btn-primary">Confirmar préstamo</button>
+                <button type="submit" class="btn btn-primary sm:w-full">Confirmar préstamo</button>
+                <a href="{% url 'registrar_prestamo_paso2' %}" class="btn btn-secondary sm:w-full">Atrás</a>
             </div>
         </form>
     </div>

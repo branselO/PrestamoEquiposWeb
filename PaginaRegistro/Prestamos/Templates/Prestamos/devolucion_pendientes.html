@@ -6,20 +6,28 @@
 <section class="space-y-6" aria-labelledby="return-title">
     <header>
         <p class="kicker">Operación</p>
-        <h1 id="return-title" class="page-title">Préstamos pendientes</h1>
-        <p class="page-lead">Paso 2 de 2: {{ usuario.nombre }} {{ usuario.apellidos }} ({{ usuario.email }}).</p>
+        <h1 id="return-title" class="page-title">Registrar devolución</h1>
+        <p class="page-lead">Paso 2 de 2: elige el préstamo y confirma quién entrega los equipos.</p>
     </header>
+
+    <ol class="grid gap-3 sm:grid-cols-2" aria-label="Progreso de la devolución">
+        <li class="step step-done"><span class="mr-2">1.</span>Autenticación</li>
+        <li class="step step-current" aria-current="step"><span class="mr-2">2.</span>Confirmación</li>
+    </ol>
 
     {% for message in messages %}
         <div class="loan-message {% if message.tags == 'error' %}error{% else %}success{% endif %}" role="alert">{{ message }}</div>
     {% endfor %}
 
-    <div class="toolbar">
-        <a href="{% url 'perfil_usuario' usuario.id %}" class="btn btn-primary">Ver perfil</a>
-        <form method="post" action="{% url 'devolucion_salir' %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-secondary">Cancelar</button>
-        </form>
+    <div class="panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        {% include 'Prestamos/_persona.html' with etiqueta='Usuario autenticado' nombre=usuario.nombre apellidos=usuario.apellidos email=usuario.email %}
+        <div class="actions sm:justify-end">
+            <a href="{% url 'perfil_usuario' usuario.id %}" class="btn btn-secondary">Ver perfil</a>
+            <form method="post" action="{% url 'devolucion_salir' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary">Salir</button>
+            </form>
+        </div>
     </div>
 
     <div class="space-y-3">
@@ -31,19 +39,26 @@
                     <span class="text-sm text-slate-600">Devolución esperada: {{ prestamo.fecha_devolucion_esperada|date:"d/m/Y" }}</span>
                     <span class="badge pendiente">{{ prestamo.estado_ticket }}</span>
                 </div>
-                <ul class="grid gap-2 text-sm text-slate-700">
+                <ul class="grid gap-2 text-sm">
                     {% for detalle in prestamo.detalles.all %}
-                        <li class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            <strong class="text-slate-900">{{ detalle.dispositivo.codigo_inventario }} — {{ detalle.dispositivo.nombre }}</strong>
-                            {% if detalle.fecha_devuelto %}<span class="text-slate-500"> · devuelto {{ detalle.fecha_devuelto|date:"d/m/Y H:i" }}</span>{% else %}<span class="text-unam-600"> · EN USO</span>{% endif %}
+                        <li class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-600 dark:bg-slate-800">
+                            <span class="font-mono text-xs font-bold text-unam-600 dark:text-blue-300">{{ detalle.dispositivo.codigo_inventario }}</span>
+                            <p class="mt-1 font-semibold text-slate-900 dark:text-slate-100">{{ detalle.dispositivo.nombre }}</p>
+                            {% if detalle.fecha_devuelto %}
+                                <p class="text-slate-500">Devuelto {{ detalle.fecha_devuelto|date:"d/m/Y H:i" }}</p>
+                            {% else %}
+                                <p class="font-semibold text-gold-700 dark:text-gold-400">En uso</p>
+                            {% endif %}
                         </li>
                     {% endfor %}
                 </ul>
-                <div class="actions">
+                <div class="flex flex-wrap gap-3">
                     <a href="{% url 'registrar_sancion' %}?prestamo={{ prestamo.id }}" class="btn btn-secondary">Registrar sanción</a>
                     <button type="button" class="btn btn-secondary" data-open-return="comment-{{ prestamo.id }}">Agregar comentario</button>
+                </div>
+                <div class="grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2">
                     <button type="button" class="btn btn-primary" data-open-return="como-{{ prestamo.id }}">Devolver como usuario</button>
-                    <button type="button" class="btn btn-primary" data-open-return="sin-{{ prestamo.id }}">Devolver sin usuario</button>
+                    <button type="button" class="btn btn-secondary" data-open-return="sin-{{ prestamo.id }}">Devolver sin usuario</button>
                 </div>
             </article>
             {% include 'Prestamos/_modales_prestamo.html' with origen='pendientes' %}
@@ -67,14 +82,6 @@
             if (event.target === dialog) dialog.close();
         });
     });
-    document.querySelectorAll('[data-auth-form]').forEach(function (form) {
-        function actualizar() {
-            const huella = form.elements['metodo'].value === 'huella';
-            form.querySelector('[data-auth-pass]').classList.toggle('hidden', huella);
-            form.querySelector('[data-auth-huella]').classList.toggle('hidden', !huella);
-        }
-        form.addEventListener('change', actualizar);
-        actualizar();
-    });
 </script>
+{% include 'Prestamos/_auth_script.html' %}
 {% endblock %}

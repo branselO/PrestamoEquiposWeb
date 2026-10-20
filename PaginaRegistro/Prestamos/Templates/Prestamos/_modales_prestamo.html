@@ -3,7 +3,8 @@
     <form method="post" action="{% url 'agregar_comentario' prestamo.id %}">
         {% csrf_token %}
         <input type="hidden" name="origen" value="{{ origen }}">
-        <h2 class="text-xl font-bold tracking-tight">Agregar comentario #{{ prestamo.id }}</h2>
+        <p class="kicker">Préstamo #{{ prestamo.id }}</p>
+        <h2 class="mt-1 text-xl font-bold tracking-tight text-unam-600 dark:text-blue-300">Agregar comentario</h2>
         <label class="field-label mt-4" for="comentario-extra-{{ prestamo.id }}">Comentario</label>
         <textarea id="comentario-extra-{{ prestamo.id }}" class="field min-h-28" name="comentarios" required placeholder="Escribe un comentario…"></textarea>
         <div class="actions mt-5 sm:justify-end">
@@ -15,12 +16,19 @@
 
 {% if prestamo.estado_ticket != "Completado" %}
 <dialog class="modal" id="como-{{ prestamo.id }}">
-    <form method="post" action="{% url 'devolucion_como_usuario' prestamo.id %}" class="space-y-4" data-auth-form>
+    <form method="post" action="{% url 'devolucion_como_usuario' prestamo.id %}" class="space-y-5" data-auth-form>
         {% csrf_token %}
         <input type="hidden" name="origen" value="{{ origen }}">
-        <h2 class="text-xl font-bold tracking-tight">Devolver como usuario #{{ prestamo.id }}</h2>
+        <div>
+            <p class="kicker">Confirmación</p>
+            <h2 class="mt-1 text-xl font-bold tracking-tight text-unam-600 dark:text-blue-300">Devolver como usuario</h2>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">Préstamo #{{ prestamo.id }}. Verifica la identidad de quien entrega el equipo.</p>
+        </div>
         {% include 'Prestamos/_devolucion_detalles.html' %}
-        {% include 'Prestamos/_auth_campos.html' with prefijo=prestamo.id correo='' metodo='contrasena' %}
+        <div class="space-y-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-600 dark:bg-slate-800/60">
+            <p class="text-sm font-semibold text-ink dark:text-slate-100">Verificación de identidad</p>
+            {% include 'Prestamos/_auth_campos.html' with prefijo=prestamo.id correo='' metodo='contrasena' %}
+        </div>
         <div class="actions sm:justify-end">
             <button type="button" class="btn btn-secondary" data-close-return>Cancelar</button>
             <button type="submit" class="btn btn-primary">Verificar y devolver</button>
@@ -29,14 +37,19 @@
 </dialog>
 
 <dialog class="modal" id="sin-{{ prestamo.id }}">
-    <form method="post" action="{% url 'devolucion_sin_usuario' prestamo.id %}" class="space-y-4">
+    <form method="post" action="{% url 'devolucion_sin_usuario' prestamo.id %}" class="space-y-5">
         {% csrf_token %}
         <input type="hidden" name="origen" value="{{ origen }}">
-        <h2 class="text-xl font-bold tracking-tight">Devolver sin usuario #{{ prestamo.id }}</h2>
+        <div>
+            <p class="kicker">Confirmación</p>
+            <h2 class="mt-1 text-xl font-bold tracking-tight text-unam-600 dark:text-blue-300">Devolver sin usuario</h2>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">Préstamo #{{ prestamo.id }}. Úsalo cuando quien entrega el equipo no puede autenticarse.</p>
+        </div>
+        <p class="callout">Se guarda el nombre de la persona. No se verifica contraseña ni huella.</p>
         {% include 'Prestamos/_devolucion_detalles.html' %}
         <div>
             <label class="field-label" for="nombre-{{ prestamo.id }}">Nombre completo de quien devuelve</label>
-            <input id="nombre-{{ prestamo.id }}" class="field" type="text" name="nombre_completo" maxlength="150" required>
+            <input id="nombre-{{ prestamo.id }}" class="field" type="text" name="nombre_completo" maxlength="150" required placeholder="Nombre y apellidos">
         </div>
         <div class="actions sm:justify-end">
             <button type="button" class="btn btn-secondary" data-close-return>Cancelar</button>

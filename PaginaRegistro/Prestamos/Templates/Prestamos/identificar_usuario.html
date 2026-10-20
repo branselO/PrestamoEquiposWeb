@@ -14,10 +14,12 @@
         <div class="flash {{ message.tags }}">{{ message }}</div>
     {% endfor %}
 
-    <form method="post">
+    <form class="panel max-w-xl space-y-4 p-5 sm:p-6" method="post">
         {% csrf_token %}
-        <label for="email">Correo electrónico:</label>
-        <input type="email" id="email" name="email" required>
+        <div>
+            <label class="field-label" for="email">Correo electrónico</label>
+            <input class="field" type="email" id="email" name="email" required autocomplete="email" placeholder="correo@ejemplo.com">
+        </div>
         <button type="submit" class="btn btn-primary">Identificar</button>
     </form>
 </section>

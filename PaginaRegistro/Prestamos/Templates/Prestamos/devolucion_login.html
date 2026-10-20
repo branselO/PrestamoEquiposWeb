@@ -7,8 +7,13 @@
     <header>
         <p class="kicker">Operación</p>
         <h1 id="return-title" class="page-title">Registrar devolución</h1>
-        <p class="page-lead">Paso 1 de 2: autentica al usuario que tiene los préstamos.</p>
+        <p class="page-lead">Paso 1 de 2: autentica a la persona que tiene los préstamos pendientes.</p>
     </header>
+
+    <ol class="grid gap-3 sm:grid-cols-2" aria-label="Progreso de la devolución">
+        <li class="step step-current" aria-current="step"><span class="mr-2">1.</span>Autenticación</li>
+        <li class="step step-todo"><span class="mr-2">2.</span>Confirmación</li>
+    </ol>
 
     {% for message in messages %}
         <div class="loan-message {% if message.tags == 'error' %}error{% else %}success{% endif %}" role="alert">{{ message }}</div>
@@ -17,8 +22,8 @@
         <div class="loan-message error" role="alert">{{ registro_error }}</div>
     {% endif %}
 
-    <div class="panel p-5 sm:p-6">
-        <form class="space-y-4" method="post" data-auth-form>
+    <div class="panel p-5 sm:p-6 lg:max-w-3xl">
+        <form class="space-y-5" method="post" data-auth-form>
             {% csrf_token %}
             {% include 'Prestamos/_auth_campos.html' with prefijo='login' %}
             <div class="actions">
@@ -28,16 +33,5 @@
         </form>
     </div>
 </section>
-
-<script>
-    document.querySelectorAll('[data-auth-form]').forEach(function (form) {
-        function actualizar() {
-            const huella = form.elements['metodo'].value === 'huella';
-            form.querySelector('[data-auth-pass]').classList.toggle('hidden', huella);
-            form.querySelector('[data-auth-huella]').classList.toggle('hidden', !huella);
-        }
-        form.addEventListener('change', actualizar);
-        actualizar();
-    });
-</script>
+{% include 'Prestamos/_auth_script.html' %}
 {% endblock %}

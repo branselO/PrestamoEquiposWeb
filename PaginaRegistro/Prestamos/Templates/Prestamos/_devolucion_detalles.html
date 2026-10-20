@@ -1,15 +1,18 @@
-<fieldset class="border-0 p-0">
-    <legend class="mb-2 text-sm font-semibold text-slate-800">Dispositivos a devolver</legend>
+<fieldset class="space-y-2 border-0 p-0">
+    <legend class="mb-1 text-sm font-semibold text-ink dark:text-slate-100">Dispositivos a devolver</legend>
     {% for detalle in prestamo.detalles.all %}
         {% if not detalle.fecha_devuelto %}
-            <label class="flex items-start gap-3 py-1 text-sm text-slate-800">
-                <input type="checkbox" class="mt-0.5 h-4 w-4 accent-unam-600" name="detalles" value="{{ detalle.id }}" checked>
-                <span>{{ detalle.dispositivo.codigo_inventario }} — {{ detalle.dispositivo.nombre }}</span>
+            <label class="choice py-3">
+                <input type="checkbox" class="mt-1 h-4 w-4 accent-unam-600" name="detalles" value="{{ detalle.id }}" checked>
+                <span>
+                    <span class="choice-title font-mono">{{ detalle.dispositivo.codigo_inventario }}</span>
+                    <span class="choice-help">{{ detalle.dispositivo.nombre }}</span>
+                </span>
             </label>
         {% endif %}
     {% endfor %}
 </fieldset>
 <div>
-    <label class="field-label" for="comentarios-dev-{{ prestamo.id }}">Comentarios del préstamo</label>
+    <label class="field-label" for="comentarios-dev-{{ prestamo.id }}">Comentarios de la devolución</label>
     <textarea id="comentarios-dev-{{ prestamo.id }}" class="field min-h-24" name="comentarios" placeholder="Ej: Pantalla rayada, cargador incompleto…"></textarea>
 </div>

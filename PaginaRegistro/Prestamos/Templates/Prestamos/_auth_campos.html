@@ -1,16 +1,34 @@
 <div>
     <label class="field-label" for="correo-{{ prefijo }}">Correo</label>
-    <input id="correo-{{ prefijo }}" class="field max-w-md" type="email" name="correo" value="{{ correo|default:'' }}" required autocomplete="email">
+    <input id="correo-{{ prefijo }}" class="field" type="email" name="correo" value="{{ correo|default:'' }}" required autocomplete="email" placeholder="correo@ejemplo.com">
 </div>
-<fieldset class="space-y-3 border-0 p-0" data-auth-fields>
-    <legend class="mb-2 text-sm font-semibold text-slate-800">Método de autenticación</legend>
-    <div class="flex flex-wrap gap-4 text-sm">
-        <label class="flex items-center gap-2"><input type="radio" class="accent-unam-600" name="metodo" value="contrasena" {% if metodo != 'huella' %}checked{% endif %}> Contraseña</label>
-        <label class="flex items-center gap-2"><input type="radio" class="accent-unam-600" name="metodo" value="huella" {% if metodo == 'huella' %}checked{% endif %}> Huella digital</label>
+<fieldset class="space-y-4 border-0 p-0" data-auth-fields>
+    <legend class="text-sm font-semibold text-ink dark:text-slate-100">Método de autenticación</legend>
+    <div class="grid gap-3 sm:grid-cols-2">
+        <label class="choice">
+            <input type="radio" class="sr-only" name="metodo" value="contrasena" {% if metodo != 'huella' %}checked{% endif %}>
+            <span class="choice-icon" aria-hidden="true">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+            </span>
+            <span>
+                <span class="choice-title">Contraseña</span>
+                <span class="choice-help">La persona escribe la contraseña de su cuenta.</span>
+            </span>
+        </label>
+        <label class="choice">
+            <input type="radio" class="sr-only" name="metodo" value="huella" {% if metodo == 'huella' %}checked{% endif %}>
+            <span class="choice-icon" aria-hidden="true">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 11a3 3 0 0 0-3 3c0 2.5 1.2 4.2 1.2 6"></path><path d="M12 7a7 7 0 0 0-7 7c0 2 .4 3.5.8 4.8"></path><path d="M12 3a11 11 0 0 0-11 11"></path><path d="M16.5 8.5a6 6 0 0 1 1.5 4c0 1.6-.3 3-.7 4.2"></path><path d="M18 20c.6-1.6 1-3.4 1-5.5A7 7 0 0 0 8.2 8"></path></svg>
+            </span>
+            <span>
+                <span class="choice-title">Huella digital</span>
+                <span class="choice-help">Al continuar, coloca el dedo en el sensor.</span>
+            </span>
+        </label>
     </div>
     <div data-auth-pass>
         <label class="field-label" for="contrasena-{{ prefijo }}">Contraseña</label>
-        <input id="contrasena-{{ prefijo }}" class="field max-w-md" type="password" name="contrasena" autocomplete="current-password">
+        <input id="contrasena-{{ prefijo }}" class="field" type="password" name="contrasena" autocomplete="current-password">
     </div>
-    <p data-auth-huella class="hidden text-sm text-slate-600">Al continuar, coloca el dedo en el sensor.</p>
+    <p data-auth-huella class="callout hidden">Pide a la persona que coloque el dedo en el sensor y después pulsa continuar. No hace falta escribir contraseña.</p>
 </fieldset>

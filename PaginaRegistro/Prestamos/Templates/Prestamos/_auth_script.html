@@ -1,0 +1,14 @@
+<script>
+    document.querySelectorAll('[data-auth-form]').forEach(function (form) {
+        function actualizar() {
+            const seleccionado = form.querySelector('input[name="metodo"]:checked');
+            const huella = seleccionado && seleccionado.value === 'huella';
+            const pass = form.querySelector('[data-auth-pass]');
+            const sensor = form.querySelector('[data-auth-huella]');
+            if (pass) pass.classList.toggle('hidden', huella);
+            if (sensor) sensor.classList.toggle('hidden', !huella);
+        }
+        form.addEventListener('change', actualizar);
+        actualizar();
+    });
+</script>

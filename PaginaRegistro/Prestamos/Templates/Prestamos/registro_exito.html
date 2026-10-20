@@ -3,25 +3,38 @@
 {% block title %}Préstamo registrado{% endblock %}
 
 {% block content %}
-<section class="space-y-6" aria-labelledby="loan-success-title">
-    <header>
-        <p class="kicker">Operación</p>
-        <h1 id="loan-success-title" class="page-title">Préstamo registrado</h1>
-    </header>
-
-    <div class="loan-message success" role="status">Préstamo #{{ prestamo.pk }} registrado correctamente.</div>
-
-    <div class="panel space-y-3 p-5 sm:p-6 text-sm text-slate-700">
-        <p>Solicitante: <strong class="text-slate-900">{{ prestamo.usuario_solicita.email }}</strong></p>
-        <p>Devolución esperada: <strong class="text-slate-900">{{ prestamo.fecha_devolucion_esperada|date:"d/m/Y" }}</strong></p>
-        <ul class="list-disc pl-5">
-            {% for detalle in prestamo.detalles.all %}
-                <li>{{ detalle.dispositivo.codigo_inventario }} — {{ detalle.dispositivo.nombre }}</li>
-            {% endfor %}
-        </ul>
-        <div class="actions">
-            <a href="{% url 'registrar_prestamo' %}" class="btn btn-primary">Registrar otro préstamo</a>
-            <a href="{% url 'prestamos' %}" class="btn btn-secondary">Ver préstamos</a>
+<section class="mx-auto max-w-2xl space-y-6" aria-labelledby="loan-success-title">
+    <div class="panel overflow-hidden">
+        <div class="border-b-4 border-gold-400 bg-unam-600 px-5 py-6 text-white sm:px-6">
+            <p class="text-xs font-bold uppercase tracking-[0.16em] text-gold-400">Confirmación</p>
+            <h1 id="loan-success-title" class="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Préstamo registrado</h1>
+            <p class="mt-2 text-sm text-white/80">Folio #{{ prestamo.pk }}</p>
+        </div>
+        <div class="space-y-5 p-5 sm:p-6">
+            <p class="loan-message success mb-0" role="status">El préstamo quedó registrado y los equipos pasaron a estado prestado.</p>
+            {% include 'Prestamos/_persona.html' with etiqueta='Solicitante' nombre=prestamo.usuario_solicita.nombre apellidos=prestamo.usuario_solicita.apellidos email=prestamo.usuario_solicita.email %}
+            <dl class="grid gap-3 sm:grid-cols-2">
+                <div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800">
+                    <dt class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-300">Devolución esperada</dt>
+                    <dd class="mt-1 text-base font-bold text-unam-600 dark:text-blue-300">{{ prestamo.fecha_devolucion_esperada|date:"d/m/Y" }}</dd>
+                </div>
+                <div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800">
+                    <dt class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-300">Equipos</dt>
+                    <dd class="mt-1 text-base font-bold text-slate-900 dark:text-slate-100">{{ prestamo.detalles.count }}</dd>
+                </div>
+            </dl>
+            <ul class="grid gap-2">
+                {% for detalle in prestamo.detalles.all %}
+                    <li class="rounded-xl border border-slate-200 px-4 py-3 text-sm dark:border-slate-600 dark:bg-slate-800">
+                        <span class="font-mono text-xs font-bold text-unam-600 dark:text-blue-300">{{ detalle.dispositivo.codigo_inventario }}</span>
+                        <p class="mt-1 font-semibold text-slate-900 dark:text-slate-100">{{ detalle.dispositivo.nombre }}</p>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div class="actions">
+                <a href="{% url 'registrar_prestamo' %}" class="btn btn-primary">Registrar otro préstamo</a>
+                <a href="{% url 'prestamos' %}" class="btn btn-secondary">Ver préstamos</a>
+            </div>
         </div>
     </div>
 </section>

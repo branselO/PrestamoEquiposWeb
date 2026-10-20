@@ -29,13 +29,13 @@
             {% csrf_token %}
             {% if dispositivos_disponibles %}
                 <fieldset class="min-w-0 border-0 p-0">
-                    <legend class="mb-3 text-sm font-semibold text-slate-800">Dispositivos disponibles</legend>
+                    <legend class="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-100">Dispositivos disponibles</legend>
                     <div class="grid gap-3">
                         {% for dispositivo in dispositivos_disponibles %}
-                            <label class="device-option flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 hover:border-gold-400 hover:bg-white" data-name="{{ dispositivo.nombre|lower }}" data-category="{{ dispositivo.categoria_id|default_if_none:'' }}">
+                            <label class="device-option flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 hover:border-gold-400 hover:bg-white dark:border-slate-600 dark:bg-slate-800 dark:hover:border-gold-400 dark:hover:bg-slate-900" data-name="{{ dispositivo.nombre|lower }}" data-category="{{ dispositivo.categoria_id|default_if_none:'' }}">
                                 <input type="checkbox" class="mt-1 h-4 w-4 accent-unam-600" name="dispositivos" value="{{ dispositivo.pk }}" {% if dispositivo.pk in seleccionados %}checked{% endif %}>
-                                <span class="text-sm leading-relaxed text-slate-700">
-                                    <strong class="text-slate-900">{{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}</strong>
+                                <span class="text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+                                    <strong class="text-slate-900 dark:text-slate-100">{{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}</strong>
                                     {% if dispositivo.categoria %}<br>{{ dispositivo.categoria.nombre }}{% endif %}
                                     <br>{{ dispositivo.especificaciones }}
                                 </span>

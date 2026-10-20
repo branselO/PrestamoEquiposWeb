@@ -7,32 +7,15 @@
     <header>
         <p class="kicker">Operación</p>
         <h1 id="loan-register-title" class="page-title">Registrar préstamo</h1>
-        <p class="page-lead">Paso 1 de 3: valida la identidad de quien recibirá el préstamo.</p>
+        <p class="page-lead">Paso 1 de 3: valida la identidad de quien recibirá el equipo.</p>
     </header>
 
     {% include 'Prestamos/_registro_pasos.html' %}
 
-    <div class="panel p-5 sm:p-6">
-        <form class="space-y-4" method="post" id="auth-form">
+    <div class="panel p-5 sm:p-6 lg:max-w-3xl">
+        <form class="space-y-5" method="post" data-auth-form>
             {% csrf_token %}
-            <div>
-                <label class="field-label" for="correo-solicitante">Correo del solicitante</label>
-                <input id="correo-solicitante" class="field max-w-md" type="email" name="correo" value="{{ correo|default:'' }}" required autocomplete="email">
-            </div>
-
-            <fieldset class="space-y-3 border-0 p-0">
-                <legend class="mb-2 text-sm font-semibold text-slate-800">Método de autenticación</legend>
-                <div class="flex flex-wrap gap-4 text-sm">
-                    <label class="flex items-center gap-2"><input type="radio" class="accent-unam-600" name="metodo" value="contrasena" {% if metodo != 'huella' %}checked{% endif %}> Contraseña</label>
-                    <label class="flex items-center gap-2"><input type="radio" class="accent-unam-600" name="metodo" value="huella" {% if metodo == 'huella' %}checked{% endif %}> Huella digital</label>
-                </div>
-                <div id="bloque-contrasena">
-                    <label class="field-label" for="contrasena-solicitante">Contraseña</label>
-                    <input id="contrasena-solicitante" class="field max-w-md" type="password" name="contrasena" autocomplete="current-password">
-                </div>
-                <p id="bloque-huella" class="hidden text-sm text-slate-600">Al continuar, el solicitante deberá colocar su dedo en el sensor.</p>
-            </fieldset>
-
+            {% include 'Prestamos/_auth_campos.html' with prefijo='solicitante' %}
             <div class="actions">
                 <button type="submit" class="btn btn-primary">Autenticar y continuar</button>
                 <a href="{% url 'prestamos' %}" class="btn btn-secondary">Cancelar</a>
@@ -40,19 +23,5 @@
         </form>
     </div>
 </section>
-
-<script>
-    (function () {
-        const form = document.getElementById('auth-form');
-        const pass = document.getElementById('bloque-contrasena');
-        const huella = document.getElementById('bloque-huella');
-        function actualizar() {
-            const esHuella = form.elements['metodo'].value === 'huella';
-            pass.classList.toggle('hidden', esHuella);
-            huella.classList.toggle('hidden', !esHuella);
-        }
-        form.addEventListener('change', actualizar);
-        actualizar();
-    })();
-</script>
+{% include 'Prestamos/_auth_script.html' %}
 {% endblock %}

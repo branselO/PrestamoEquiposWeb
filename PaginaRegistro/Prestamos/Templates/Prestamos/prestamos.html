@@ -82,7 +82,7 @@
                                         {% endif %}
                                         el {{ detalle.fecha_devuelto|date:"d/m/Y H:i" }}
                                     {% else %}
-                                        {{ detalle.dispositivo.codigo_inventario }} — EN USO
+                                        <span class="font-semibold text-gold-700 dark:text-gold-400">{{ detalle.dispositivo.codigo_inventario }} — EN USO</span>
                                     {% endif %}
                                 </p>
                             {% empty %}

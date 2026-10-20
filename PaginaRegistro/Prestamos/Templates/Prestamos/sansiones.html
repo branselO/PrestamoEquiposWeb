@@ -78,7 +78,7 @@
             <dialog class="modal" id="estado-{{ sancion.id }}">
                 <form method="post" action="{% url 'modificar_estado_sancion' sancion.id %}">
                     {% csrf_token %}
-                    <h2 class="text-xl font-bold tracking-tight">Modificar estado de sanción #{{ sancion.id }}</h2>
+                    <h2 class="text-xl font-bold tracking-tight text-unam-600 dark:text-blue-300">Modificar estado de sanción #{{ sancion.id }}</h2>
                     <label class="field-label mt-4" for="estado-sel-{{ sancion.id }}">Estado</label>
                     <select id="estado-sel-{{ sancion.id }}" class="field" name="estado">
                         {% for valor, etiqueta in estados %}

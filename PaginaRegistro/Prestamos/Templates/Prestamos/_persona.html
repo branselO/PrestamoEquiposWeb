@@ -1,0 +1,8 @@
+<div class="flex items-center gap-3">
+    <span class="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gold-50 text-sm font-bold uppercase text-unam-600" aria-hidden="true">{{ nombre|first }}{{ apellidos|first }}</span>
+    <div class="min-w-0">
+        <p class="text-xs font-bold uppercase tracking-[0.14em] text-gold-700 dark:text-gold-400">{{ etiqueta }}</p>
+        <p class="truncate text-base font-bold text-slate-900 dark:text-slate-100">{{ nombre }} {{ apellidos }}</p>
+        <p class="truncate text-sm text-slate-600 dark:text-slate-300">{{ email }}</p>
+    </div>
+</div>
