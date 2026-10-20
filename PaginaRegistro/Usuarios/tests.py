@@ -26,6 +26,17 @@ class UserRegistrationFormTests(TestCase):
                     self.registration_fields.issubset(form_class.base_fields)
                 )
 
+    def test_registration_forms_ask_for_program_before_academic_entity(self):
+        from .forms import NormalUserCreationForm, StaffSignUpForm
+
+        for form_class in (NormalUserCreationForm, StaffSignUpForm):
+            with self.subTest(form=form_class.__name__):
+                field_names = list(form_class.base_fields)
+                self.assertLess(
+                    field_names.index('programa'),
+                    field_names.index('entidad_academica'),
+                )
+
     def test_registration_keeps_additional_fields_until_fingerprint_step(self):
         from .models import EntidadAcademica, Programa
 
@@ -38,7 +49,7 @@ class UserRegistrationFormTests(TestCase):
         )
         programa = Programa.objects.create(clave='ING', nombre='Ingeniería')
         entidad = EntidadAcademica.objects.create(clave='FI', nombre='Facultad')
-        entidad.programas_impartidos.add(programa)
+        programa.entidades_academicas.add(entidad)
 
         self.client.force_login(staff)
         response = self.client.post(
@@ -89,37 +100,39 @@ class UserRegistrationFormTests(TestCase):
         self.assertEqual(usuario.entidad_academica_id, entidad.pk)
         self.assertEqual(usuario.programa_id, programa.pk)
 
-    def test_programas_endpoint_returns_only_programs_of_selected_entity(self):
+    def test_entidades_endpoint_returns_only_entities_of_selected_program(self):
         from .models import EntidadAcademica, Programa
 
-        entidad = EntidadAcademica.objects.create(clave='FI', nombre='Facultad')
-        programa_permitido = Programa.objects.create(clave='ING', nombre='Ingeniería')
-        Programa.objects.create(clave='DER', nombre='Derecho')
-        entidad.programas_impartidos.add(programa_permitido)
+        entidad_permitida = EntidadAcademica.objects.create(clave='FI', nombre='Facultad')
+        entidad_ajena = EntidadAcademica.objects.create(clave='FDER', nombre='Derecho')
+        programa = Programa.objects.create(clave='ING', nombre='Ingeniería')
+        programa_sin_entidad = Programa.objects.create(clave='DER', nombre='Derecho')
+        programa.entidades_academicas.add(entidad_permitida)
+        programa_sin_entidad.entidades_academicas.add(entidad_ajena)
 
         response = self.client.get(
-            reverse('programas_por_entidad'),
-            {'entidad_id': entidad.pk},
+            reverse('entidades_por_programa'),
+            {'programa_id': programa.pk},
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json()['programas'],
+            response.json()['entidades'],
             [{
-                'id': programa_permitido.pk,
-                'clave': 'ING',
-                'nombre': 'Ingeniería',
+                'id': entidad_permitida.pk,
+                'clave': 'FI',
+                'nombre': 'Facultad',
             }],
         )
 
-    def test_registration_form_rejects_program_not_imparted_by_selected_entity(self):
+    def test_registration_form_rejects_entity_not_associated_with_selected_program(self):
         from .forms import NormalUserCreationForm
         from .models import EntidadAcademica, Programa
 
         entidad = EntidadAcademica.objects.create(clave='FI', nombre='Facultad')
         otra_entidad = EntidadAcademica.objects.create(clave='FDER', nombre='Derecho')
         programa = Programa.objects.create(clave='DER', nombre='Derecho')
-        otra_entidad.programas_impartidos.add(programa)
+        programa.entidades_academicas.add(otra_entidad)
 
         form = NormalUserCreationForm(data={
             'email': 'alumno@example.com',
@@ -132,7 +145,7 @@ class UserRegistrationFormTests(TestCase):
         })
 
         self.assertFalse(form.is_valid())
-        self.assertIn('programa', form.errors)
+        self.assertIn('entidad_academica', form.errors)
 
     def test_user_profile_displays_all_registration_fields(self):
         from .models import EntidadAcademica, Programa
@@ -142,7 +155,7 @@ class UserRegistrationFormTests(TestCase):
             clave='ING',
             nombre='Ingeniería en Computación',
         )
-        entidad.programas_impartidos.add(programa)
+        programa.entidades_academicas.add(entidad)
         usuario = get_user_model().objects.create(
             email='ana@example.com',
             nombre='Ana',

@@ -13,30 +13,30 @@ from .hardware import verify_fingerprint_from_db, get_sensor, enroll_fingerprint
 from django.shortcuts import get_object_or_404
 
 
-def programas_por_entidad(request):
+def entidades_por_programa(request):
     if request.method != 'GET':
         return JsonResponse(
             {'error': 'Método no permitido.'},
             status=405,
         )
 
-    entity_id = request.GET.get('entidad_id')
-    if not entity_id or not entity_id.isdecimal():
+    program_id = request.GET.get('programa_id')
+    if not program_id or not program_id.isdecimal():
         return JsonResponse(
-            {'error': 'Selecciona una entidad académica válida.'},
+            {'error': 'Selecciona un programa válido.'},
             status=400,
         )
 
-    if not EntidadAcademica.objects.filter(pk=entity_id).exists():
+    if not Programa.objects.filter(pk=program_id).exists():
         return JsonResponse(
-            {'error': 'La entidad académica seleccionada no existe.'},
+            {'error': 'El programa seleccionado no existe.'},
             status=404,
         )
 
-    programas = Programa.objects.filter(
-        entidades__pk=entity_id
+    entidades = EntidadAcademica.objects.filter(
+        programas_impartidos__pk=program_id
     ).distinct().order_by('nombre').values('id', 'clave', 'nombre')
-    return JsonResponse({'programas': list(programas)})
+    return JsonResponse({'entidades': list(entidades)})
 
 
 def _get_registration_session_data(form, is_staff):

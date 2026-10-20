@@ -82,6 +82,8 @@ class RegistrarPrestamoTests(TestCase):
 
         response = self.client.get(reverse('registrar_prestamo_paso2'))
         self.assertContains(response, self.dispositivo.codigo_inventario)
+        self.assertContains(response, 'Dispositivos disponibles')
+        self.assertContains(response, 'Dispositivos seleccionados')
         response = self.seleccionar_dispositivos()
         self.assertRedirects(response, reverse('registrar_prestamo_paso3'))
 
@@ -110,6 +112,23 @@ class RegistrarPrestamoTests(TestCase):
         self.dispositivo.refresh_from_db()
         self.assertEqual(self.dispositivo.estado, 'prestado')
         self.assertNotIn('registro_prestamo', self.client.session)
+
+    def test_step_two_filters_available_devices_by_inventory_code(self):
+        self.autenticar()
+        otro_dispositivo = Dispositivo.objects.create(
+            codigo_inventario='CAM-002',
+            nombre='Cámara de prueba',
+            categoria=self.categoria,
+            especificaciones='4K',
+        )
+
+        response = self.client.get(
+            reverse('registrar_prestamo_paso2'),
+            {'codigo': 'PC-001'},
+        )
+
+        self.assertContains(response, self.dispositivo.codigo_inventario)
+        self.assertNotContains(response, otro_dispositivo.codigo_inventario)
 
     def test_active_sanction_blocks_authentication(self):
         prestamo_anterior = Prestamo.objects.create(

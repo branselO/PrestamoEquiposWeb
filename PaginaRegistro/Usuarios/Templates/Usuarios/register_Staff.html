@@ -18,7 +18,7 @@
                 <h2 class="page-title">Registrar personal staff</h2>
                 <p class="page-lead">Crea una cuenta de personal administrativo.</p>
             </header>
-            <form class="form-stack" method="post" data-programs-url="{% url 'programas_por_entidad' %}">
+            <form class="form-stack" method="post" data-entities-url="{% url 'entidades_por_programa' %}">
                 {% csrf_token %}
                 {{ form.as_p }}
                 <button type="submit" class="btn btn-primary btn-block">Crear cuenta staff</button>
@@ -37,12 +37,12 @@
         <h1 class="page-title">Registrar personal staff</h1>
         <p class="page-lead">Crea una cuenta de personal administrativo.</p>
     </header>
-    <form class="form-stack panel p-5 sm:p-6" method="post" data-programs-url="{% url 'programas_por_entidad' %}">
+    <form class="form-stack panel p-5 sm:p-6" method="post" data-entities-url="{% url 'entidades_por_programa' %}">
         {% csrf_token %}
         {{ form.as_p }}
         <button type="submit" class="btn btn-primary btn-block">Crear cuenta staff</button>
     </form>
 </section>
 {% endif %}
-<script src="{% static 'Usuarios/js/programas_por_entidad.js' %}" defer></script>
+<script src="{% static 'Usuarios/js/entidades_por_programa.js' %}" defer></script>
 {% endblock %}
