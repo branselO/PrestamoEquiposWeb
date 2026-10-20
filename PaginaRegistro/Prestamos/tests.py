@@ -84,6 +84,7 @@ class RegistrarPrestamoTests(TestCase):
         self.assertContains(response, self.dispositivo.codigo_inventario)
         self.assertContains(response, 'Dispositivos disponibles')
         self.assertContains(response, 'Dispositivos seleccionados')
+        self.assertContains(response, 'id="barcode-scan"')
         response = self.seleccionar_dispositivos()
         self.assertRedirects(response, reverse('registrar_prestamo_paso3'))
 

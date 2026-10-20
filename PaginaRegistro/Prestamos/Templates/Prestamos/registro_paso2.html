@@ -7,7 +7,7 @@
     <header>
         <p class="kicker">Operación</p>
         <h1 id="loan-register-title" class="page-title">Registrar préstamo</h1>
-        <p class="page-lead">Paso 2 de 3: selecciona los equipos para <strong>{{ solicitante.email }}</strong>.</p>
+        <p class="page-lead">Paso 2 de 3: escanea o selecciona los equipos para <strong>{{ solicitante.email }}</strong>.</p>
     </header>
 
     {% include 'Prestamos/_registro_pasos.html' %}
@@ -28,6 +28,11 @@
     <div class="panel p-5 sm:p-6">
         <form class="space-y-5" method="post">
             {% csrf_token %}
+            <div>
+                <label class="field-label" for="barcode-scan">Código de barras</label>
+                <input id="barcode-scan" class="field font-mono" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="Escanea el código del equipo" autofocus>
+                <p id="barcode-status" class="mt-2 min-h-5 text-sm font-medium" role="status" aria-live="polite"></p>
+            </div>
             <fieldset class="min-w-0 border-0 border-t border-slate-200 pt-5 dark:border-slate-600">
                 <legend class="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-100">Dispositivos seleccionados</legend>
                 <div class="grid gap-3" id="selected-devices"></div>
@@ -38,7 +43,7 @@
                 <legend class="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-100">Dispositivos disponibles</legend>
                 <div class="grid gap-3" id="available-devices">
                     {% for dispositivo in dispositivos_disponibles %}
-                        <label class="device-option flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 hover:border-gold-400 hover:bg-white dark:border-slate-600 dark:bg-slate-800 dark:hover:border-gold-400 dark:hover:bg-slate-900" data-name="{{ dispositivo.nombre|lower }}" data-code="{{ dispositivo.codigo_inventario|lower }}" data-category="{{ dispositivo.categoria_id|default_if_none:'' }}">
+                        <label class="device-option flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 hover:border-gold-400 hover:bg-white dark:border-slate-600 dark:bg-slate-800 dark:hover:border-gold-400 dark:hover:bg-slate-900" data-name="{{ dispositivo.nombre|lower }}" data-code="{{ dispositivo.codigo_inventario|lower }}" data-label="{{ dispositivo.codigo_inventario }}" data-category="{{ dispositivo.categoria_id|default_if_none:'' }}">
                             <input type="checkbox" class="mt-1 h-4 w-4 accent-unam-600" name="dispositivos" value="{{ dispositivo.pk }}" {% if dispositivo.pk in seleccionados %}checked{% endif %}>
                             <span class="text-sm leading-relaxed text-slate-700 dark:text-slate-200">
                                 <strong class="text-slate-900 dark:text-slate-100">{{ dispositivo.codigo_inventario }} — {{ dispositivo.nombre }}</strong>
@@ -71,6 +76,65 @@
         const selectedDevices = document.getElementById('selected-devices');
         const availableEmpty = document.getElementById('available-empty');
         const selectedEmpty = document.getElementById('selected-empty');
+        const barcodeScan = document.getElementById('barcode-scan');
+        const barcodeStatus = document.getElementById('barcode-status');
+        const SCAN_GAP_MS = 40;
+        let scanBuffer = '';
+        let lastScanAt = 0;
+
+        function anunciar(mensaje, tono) {
+            barcodeStatus.textContent = mensaje;
+            barcodeStatus.className = 'mt-2 min-h-5 text-sm font-medium ' + (
+                tono === 'error'
+                    ? 'text-red-700'
+                    : tono === 'aviso'
+                        ? 'text-gold-700 dark:text-gold-400'
+                        : 'text-unam-600 dark:text-blue-300'
+            );
+        }
+
+        function buscarDispositivo(codigo) {
+            const normalizado = codigo.trim().toLowerCase();
+            if (!normalizado) {
+                return null;
+            }
+            return Array.from(document.querySelectorAll('#available-devices .device-option, #selected-devices .device-option'))
+                .find(function (option) {
+                    return option.dataset.code === normalizado;
+                }) || null;
+        }
+
+        function seleccionarPorCodigo(codigo) {
+            const texto = codigo.trim();
+            const option = buscarDispositivo(texto);
+            if (!option) {
+                anunciar('No hay un dispositivo disponible con el código ' + texto + '.', 'error');
+                barcodeScan.focus();
+                return;
+            }
+            const input = option.querySelector('input[name="dispositivos"]');
+            if (input.checked) {
+                anunciar(option.dataset.label + ' ya está en dispositivos seleccionados.', 'aviso');
+                barcodeScan.focus();
+                return;
+            }
+            option.classList.remove('hidden');
+            input.checked = true;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            anunciar(option.dataset.label + ' se agregó a dispositivos seleccionados.');
+            option.scrollIntoView({ block: 'nearest' });
+            barcodeScan.focus();
+        }
+
+        function quitarCodigoEscaneado(campo, codigo) {
+            if (!campo || campo === barcodeScan || typeof campo.value !== 'string') {
+                return;
+            }
+            if (campo.value.endsWith(codigo)) {
+                campo.value = campo.value.slice(0, -codigo.length);
+                campo.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
 
         function aplicar() {
             const texto = q.value.trim().toLowerCase();
@@ -129,6 +193,53 @@
         codigo.addEventListener('input', aplicar);
         categoria.addEventListener('change', aplicar);
         aplicar();
+
+        barcodeScan.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter' && event.key !== 'Tab') {
+                return;
+            }
+            if (event.key === 'Tab' && !barcodeScan.value.trim()) {
+                return;
+            }
+            event.preventDefault();
+            const leido = barcodeScan.value;
+            barcodeScan.value = '';
+            scanBuffer = '';
+            if (leido.trim()) {
+                seleccionarPorCodigo(leido);
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.target === barcodeScan || event.ctrlKey || event.metaKey || event.altKey) {
+                return;
+            }
+            if (event.key === 'Shift' || event.key === 'CapsLock') {
+                return;
+            }
+            const ahora = performance.now();
+            if (event.key === 'Enter' || event.key === 'Tab') {
+                const fueRafaga = scanBuffer.length >= 3 && ahora - lastScanAt < SCAN_GAP_MS;
+                const leido = scanBuffer;
+                scanBuffer = '';
+                if (!fueRafaga) {
+                    return;
+                }
+                event.preventDefault();
+                quitarCodigoEscaneado(event.target, leido);
+                seleccionarPorCodigo(leido);
+                return;
+            }
+            if (event.key.length !== 1) {
+                scanBuffer = '';
+                return;
+            }
+            if (scanBuffer && ahora - lastScanAt > SCAN_GAP_MS) {
+                scanBuffer = '';
+            }
+            scanBuffer += event.key;
+            lastScanAt = ahora;
+        });
     })();
 </script>
 {% endblock %}
