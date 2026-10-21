@@ -176,30 +176,84 @@ class RegistrarPrestamoTests(TestCase):
         self.assertEqual(Prestamo.objects.count(), 0)
         self.assertIn('registro_prestamo', self.client.session)
 
-    @patch('Prestamos.registro_views.verify_fingerprint_from_db', return_value=True)
+    @patch('Prestamos.registro_views.IndiceBiometricoRAM.identificar_1_a_N')
+    @patch(
+        'Prestamos.registro_views.capturar_minucias_en_vivo',
+        return_value='minucias-capturadas',
+    )
     @patch('Prestamos.registro_views.get_sensor')
     def test_fingerprint_authenticates_and_closes_sensor(
         self,
         get_sensor,
-        verify_fingerprint,
+        capture_minutiae,
+        identify_fingerprint,
     ):
         self.solicitante.huella_template = b'huella-registrada'
         self.solicitante.save(update_fields=['huella_template'])
         uart = Mock(is_open=True)
         sensor = Mock()
         get_sensor.return_value = (sensor, uart)
+        identify_fingerprint.return_value = (self.solicitante.pk, 0.8, 1.2)
 
         response = self.client.post(self.url, {
-            'correo': self.solicitante.email,
             'metodo': 'huella',
         })
 
         self.assertRedirects(response, reverse('registrar_prestamo_paso2'))
-        verify_fingerprint.assert_called_once()
-        self.assertEqual(
-            bytes(verify_fingerprint.call_args.args[1]),
-            b'huella-registrada',
+        capture_minutiae.assert_called_once_with(sensor)
+        identify_fingerprint.assert_called_once_with(
+            'minucias-capturadas',
+            ModeloUsuario=get_user_model(),
+            umbral=0.30,
         )
+        uart.close.assert_called_once()
+
+    @patch('Prestamos.registro_views.IndiceBiometricoRAM.identificar_1_a_N')
+    @patch(
+        'Prestamos.registro_views.capturar_minucias_en_vivo',
+        return_value='minucias-capturadas',
+    )
+    @patch('Prestamos.registro_views.get_sensor')
+    def test_fingerprint_authentication_does_not_require_email(
+        self,
+        get_sensor,
+        capture_minutiae,
+        identify_fingerprint,
+    ):
+        uart = Mock(is_open=True)
+        sensor = Mock()
+        get_sensor.return_value = (sensor, uart)
+        identify_fingerprint.return_value = (self.solicitante.pk, 0.8, 1.2)
+
+        response = self.client.post(self.url, {'metodo': 'huella'})
+
+        self.assertRedirects(response, reverse('registrar_prestamo_paso2'))
+        self.assertEqual(
+            self.client.session['registro_prestamo']['usuario_id'],
+            self.solicitante.pk,
+        )
+        uart.close.assert_called_once()
+
+    @patch('Prestamos.registro_views.IndiceBiometricoRAM.identificar_1_a_N')
+    @patch(
+        'Prestamos.registro_views.capturar_minucias_en_vivo',
+        return_value='minucias-capturadas',
+    )
+    @patch('Prestamos.registro_views.get_sensor')
+    def test_unmatched_fingerprint_does_not_start_flow(
+        self,
+        get_sensor,
+        capture_minutiae,
+        identify_fingerprint,
+    ):
+        uart = Mock(is_open=True)
+        get_sensor.return_value = (Mock(), uart)
+        identify_fingerprint.return_value = (None, 0.0, 1.2)
+
+        response = self.client.post(self.url, {'metodo': 'huella'})
+
+        self.assertContains(response, 'No se encontró una huella coincidente')
+        self.assertNotIn('registro_prestamo', self.client.session)
         uart.close.assert_called_once()
 
     def test_device_that_becomes_unavailable_cannot_be_loaned(self):
@@ -324,6 +378,30 @@ class RegistrarDevolucionFlujoTests(TestCase):
         self.assertContains(response, 'PC-001')
         self.assertContains(response, 'Devolver como usuario')
         self.assertContains(response, 'Devolver sin usuario')
+
+    @patch('Prestamos.registro_views.IndiceBiometricoRAM.identificar_1_a_N')
+    @patch(
+        'Prestamos.registro_views.capturar_minucias_en_vivo',
+        return_value='minucias-capturadas',
+    )
+    @patch('Prestamos.registro_views.get_sensor')
+    def test_fingerprint_login_does_not_require_email(
+        self,
+        get_sensor,
+        capture_minutiae,
+        identify_fingerprint,
+    ):
+        uart = Mock(is_open=True)
+        sensor = Mock()
+        get_sensor.return_value = (sensor, uart)
+        identify_fingerprint.return_value = (self.alumno.pk, 0.8, 1.2)
+
+        response = self.client.post(reverse('devolucion_login'), {'metodo': 'huella'})
+
+        self.assertRedirects(response, reverse('devolucion_pendientes'))
+        self.assertEqual(self.client.session['devolucion_usuario_id'], self.alumno.pk)
+        capture_minutiae.assert_called_once_with(sensor)
+        uart.close.assert_called_once()
 
     def test_wrong_password_and_missing_session(self):
         response = self.client.post(reverse('devolucion_login'), {

@@ -85,11 +85,24 @@ class UserRegistrationFormTests(TestCase):
         self.assertEqual(temp_data['programa_id'], programa.pk)
         self.assertFalse(temp_data['is_staff'])
 
-        response = self.client.post(reverse('registrar_huella'))
+        uart = Mock(is_open=True)
+        sensor = Mock()
+        with (
+            patch('Usuarios.views.get_sensor', return_value=(sensor, uart)),
+            patch(
+                'Usuarios.views.enroll_fingerprint_to_db',
+                return_value=b'template-biometrico',
+            ) as enroll,
+            patch('Usuarios.views.IndiceBiometricoRAM.actualizar_usuario') as update_index,
+        ):
+            response = self.client.post(reverse('registrar_huella'))
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['status'], 'success')
         usuario = get_user_model().objects.get(email='alumno@example.com')
+        enroll.assert_called_once_with(sensor)
+        update_index.assert_called_once_with(usuario.pk, b'template-biometrico')
+        uart.close.assert_called_once()
         self.assertEqual(usuario.numero_cuenta, '123456789')
         self.assertEqual(usuario.numero_trabajador, 'TRAB-10')
         self.assertEqual(usuario.rfc, 'LOPA000101ABC')
@@ -260,11 +273,22 @@ class LoginFlowTests(TestCase):
             self.user.id,
         )
 
-    @patch('Usuarios.views.verify_fingerprint_from_db', return_value=True)
+    @patch('Usuarios.views.comparar_minucias_fast', return_value=0.8)
+    @patch('Usuarios.views.capturar_minucias_en_vivo', return_value='minucias-capturadas')
+    @patch('Usuarios.views.deserializar_template', return_value='minucias-registradas')
     @patch('Usuarios.views.get_sensor')
-    def test_fingerprint_authentication_still_works(self, get_sensor, verify_fingerprint):
+    def test_fingerprint_authentication_still_works(
+        self,
+        get_sensor,
+        deserialize_template,
+        capture_minutiae,
+        compare_minutiae,
+    ):
+        self.user.huella_template = b'template-registrado'
+        self.user.save(update_fields=['huella_template'])
         uart = Mock(is_open=True)
-        get_sensor.return_value = (Mock(), uart)
+        sensor = Mock()
+        get_sensor.return_value = (sensor, uart)
         self.client.get(reverse('login'))
         self.client.post(reverse('login'), {'email': self.user.email})
 
@@ -273,8 +297,7 @@ class LoginFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['status'], 'success')
         self.assertTrue(self.client.session.get('_auth_user_id'))
-        verify_fingerprint.assert_called_once_with(
-            get_sensor.return_value[0],
-            self.user.huella_template,
-        )
+        deserialize_template.assert_called_once_with(bytes(self.user.huella_template))
+        capture_minutiae.assert_called_once_with(sensor)
+        compare_minutiae.assert_called_once()
         uart.close.assert_called_once()

@@ -13,6 +13,8 @@ from .hardware import (
     get_sensor,
     enroll_fingerprint_to_db,
     capturar_minucias_en_vivo,
+    deserializar_template,
+    comparar_minucias_fast,
     apagar_led_sensor,
 )
 from .biometria_cache import IndiceBiometricoRAM
@@ -133,16 +135,11 @@ def api_registrar_huella(request):
         if not temp_data:
             return JsonResponse({'status': 'error', 'message': 'Sesión caducada.'}, status=400)
 
-        uart = None # Inicializamos en caso de que get_sensor falle antes de asignarla
+        sensor = uart = None
         
         try:
-            # 1. Abrimos el puerto dinámico e inicializamos el hardware
-            #sensor, uart = get_sensor()
-            
-            # 2. Ejecutamos la lectura biométrica doble
-            #template_bytes = enroll_fingerprint_to_db(sensor) 
-
-            template_bytes = b'simulacion_huella'  # Simulación de la plantilla de huella en bytes
+            sensor, uart = get_sensor()
+            template_bytes = enroll_fingerprint_to_db(sensor)
             
             if template_bytes:
                 user = CustomUser(
@@ -164,6 +161,7 @@ def api_registrar_huella(request):
                         setattr(user, field_name, value)
 
                 user.save()
+                IndiceBiometricoRAM.actualizar_usuario(user.pk, template_bytes)
                 
                 del request.session['temp_user_data']
                 
@@ -171,13 +169,15 @@ def api_registrar_huella(request):
             else:
                 return JsonResponse({'status': 'error', 'message': 'No se pudo leer la huella. Intente de nuevo.'}, status=400)
                 
-        except RuntimeError as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-            
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': f'Error interno: {str(e)}'}, status=500)
+        except (OSError, RuntimeError) as error:
+            return JsonResponse(
+                {'status': 'error', 'message': f'No se pudo registrar la huella: {error}'},
+                status=400,
+            )
             
         finally:
+            if sensor:
+                apagar_led_sensor(sensor)
             if uart and uart.is_open:
                 uart.close()
 
@@ -233,14 +233,18 @@ def api_login_huella(request):
                 'redirect_url': reverse('inicio'),
             })
 
-        uart = None  # Inicializamos la variable del puerto
-        
+        if not user.huella_template:
+            return JsonResponse(
+                {'status': 'error', 'message': 'El usuario no tiene una huella registrada.'},
+                status=401,
+            )
+
+        sensor = uart = None
         try:
-            # 1. Abrimos el puerto y conectamos con el Arduino/Sensor
             sensor, uart = get_sensor()
-            
-            # 2. Descargamos los bytes de la base de datos e inyectamos al sensor
-            match = verify_fingerprint_from_db(sensor, user.huella_template)
+            minucias = capturar_minucias_en_vivo(sensor)
+            minucias_registradas = deserializar_template(bytes(user.huella_template))
+            match = comparar_minucias_fast(minucias, minucias_registradas) >= 0.30
             
             if match:
                 login(request, user) # Autenticamos en Django
@@ -253,17 +257,15 @@ def api_login_huella(request):
             else:
                 return JsonResponse({'status': 'error', 'message': 'La huella no coincide.'}, status=401)
                 
-        except RuntimeError as e:
-            # Atrapa errores como desconexiones físicas o fallos del sensor
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-            
-        except Exception as e:
-            # Atrapa cualquier otro error de Python
-            return JsonResponse({'status': 'error', 'message': f'Error interno: {str(e)}'}, status=500)
+        except (OSError, RuntimeError) as e:
+            return JsonResponse(
+                {'status': 'error', 'message': f'No se pudo verificar la huella: {e}'},
+                status=500,
+            )
             
         finally:
-            # Cerramos el puerto USB pase lo que pase
-            # Esto evita el "[Errno 16] Resource busy" en el siguiente inicio de sesión
+            if sensor:
+                apagar_led_sensor(sensor)
             if uart and uart.is_open:
                 uart.close()
                 

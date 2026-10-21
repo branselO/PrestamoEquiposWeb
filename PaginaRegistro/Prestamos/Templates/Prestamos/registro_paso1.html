@@ -12,6 +12,10 @@
 
     {% include 'Prestamos/_registro_pasos.html' %}
 
+    {% if registro_error %}
+        <div class="loan-message error" role="alert">{{ registro_error }}</div>
+    {% endif %}
+
     <div class="panel p-5 sm:p-6 lg:max-w-3xl">
         <form class="space-y-5" method="post" data-auth-form>
             {% csrf_token %}

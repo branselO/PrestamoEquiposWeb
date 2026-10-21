@@ -11,26 +11,10 @@ from django.utils import timezone
 from django.views.generic import TemplateView, View
 
 from .models import Prestamo
-from .registro_views import RegistrarPrestamoPaso1View
+from .registro_views import autenticar_usuario
 from .views import StaffRequiredMixin
 
 SESSION_KEY = 'devolucion_usuario_id'
-
-
-def autenticar(correo, metodo, contrasena):
-    """Devuelve (usuario, error) verificando por contraseña o huella."""
-    usuario = get_user_model().objects.filter(
-        email__iexact=(correo or '').strip(), is_active=True
-    ).first()
-    if usuario is None:
-        return None, 'No se encontró un usuario activo con ese correo.'
-    if metodo == 'huella':
-        error = RegistrarPrestamoPaso1View.verificar_huella(usuario)
-    elif metodo == 'contrasena':
-        error = None if usuario.check_password(contrasena or '') else 'La contraseña no es correcta.'
-    else:
-        error = 'Selecciona un método de autenticación.'
-    return (None, error) if error else (usuario, None)
 
 
 class DevolucionLoginView(StaffRequiredMixin, TemplateView):
@@ -39,7 +23,11 @@ class DevolucionLoginView(StaffRequiredMixin, TemplateView):
     def post(self, request):
         correo = request.POST.get('correo', '')
         metodo = request.POST.get('metodo')
-        usuario, error = autenticar(correo, metodo, request.POST.get('contrasena'))
+        usuario, error = autenticar_usuario(
+            correo,
+            metodo,
+            request.POST.get('contrasena'),
+        )
         if error:
             context = self.get_context_data(registro_error=error, correo=correo, metodo=metodo)
             return self.render_to_response(context)
@@ -139,7 +127,7 @@ class DevolucionBaseView(StaffRequiredMixin, View):
 
 class DevolverComoUsuarioView(DevolucionBaseView):
     def identificar_quien_devuelve(self, request):
-        usuario, error = autenticar(
+        usuario, error = autenticar_usuario(
             request.POST.get('correo'),
             request.POST.get('metodo'),
             request.POST.get('contrasena'),

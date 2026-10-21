@@ -3,9 +3,15 @@
         function actualizar() {
             const seleccionado = form.querySelector('input[name="metodo"]:checked');
             const huella = seleccionado && seleccionado.value === 'huella';
+            const correo = form.querySelector('[data-auth-email] input[name="correo"]');
+            const email = form.querySelector('[data-auth-email]');
             const pass = form.querySelector('[data-auth-pass]');
+            const contrasena = form.querySelector('[data-auth-pass] input[name="contrasena"]');
             const sensor = form.querySelector('[data-auth-huella]');
+            if (email) email.classList.toggle('hidden', huella);
+            if (correo) correo.required = !huella;
             if (pass) pass.classList.toggle('hidden', huella);
+            if (contrasena) contrasena.required = !huella;
             if (sensor) sensor.classList.toggle('hidden', !huella);
         }
         form.addEventListener('change', actualizar);

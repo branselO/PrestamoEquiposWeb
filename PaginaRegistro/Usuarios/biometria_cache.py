@@ -15,9 +15,9 @@ class IndiceBiometricoRAM:
     def cargar_desde_postgres(cls, ModeloUsuario):
         """Carga todas las huellas no nulas desde PostgreSQL al arrancar."""
         with cls._lock:
-            qs = ModeloUsuario.objects.exclude(huella_template__isnull=True).values_list(
-                "id", "huella_template"
-            )
+            qs = ModeloUsuario.objects.filter(is_active=True).exclude(
+                huella_template__isnull=True
+            ).values_list("id", "huella_template")
             nuevo_padron = {}
             for user_id, blob in qs:
                 if blob:
@@ -51,8 +51,8 @@ class IndiceBiometricoRAM:
         mejor_uid = None
         mejor_score = 0.0
 
-        # Lectura sin bloqueo sobre copia superficial del diccionario
-        padron_snapshot = list(cls._padron.items())
+        with cls._lock:
+            padron_snapshot = list(cls._padron.items())
 
         for uid, m_db in padron_snapshot:
             score = comparar_minucias_fast(m_captura, m_db)

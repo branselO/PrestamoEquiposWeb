@@ -16,7 +16,8 @@ from django.utils.dateparse import parse_date
 from django.views.generic import TemplateView
 
 from Inventario.models import Categoria, Dispositivo
-from Usuarios.hardware import get_sensor, verify_fingerprint_from_db
+from Usuarios.biometria_cache import IndiceBiometricoRAM
+from Usuarios.hardware import apagar_led_sensor, capturar_minucias_en_vivo, get_sensor
 from .models import DetallePrestamo, Prestamo
 from .views import StaffRequiredMixin
 
@@ -29,6 +30,48 @@ def _wizard(request):
 
 def _reset(request):
     request.session.pop(SESSION_KEY, None)
+
+
+def autenticar_usuario(correo, metodo, contrasena):
+    """Autentica con correo y contraseña o identifica mediante una captura 1:N."""
+    User = get_user_model()
+    if metodo == 'contrasena':
+        correo = (correo or '').strip()
+        if not correo:
+            return None, 'Ingresa el correo electrónico para usar contraseña.'
+        usuario = User.objects.filter(email__iexact=correo, is_active=True).first()
+        if usuario is None:
+            return None, 'No se encontró un usuario activo con ese correo.'
+        if not usuario.check_password(contrasena or ''):
+            return None, 'La contraseña no es correcta.'
+        return usuario, None
+
+    if metodo != 'huella':
+        return None, 'Selecciona un método de autenticación.'
+
+    sensor = uart = None
+    try:
+        sensor, uart = get_sensor()
+        minucias = capturar_minucias_en_vivo(sensor)
+        usuario_id, _, _ = IndiceBiometricoRAM.identificar_1_a_N(
+            minucias,
+            ModeloUsuario=User,
+            umbral=0.30,
+        )
+    except (OSError, RuntimeError) as error:
+        return None, f'No se pudo verificar la huella: {error}'
+    finally:
+        if sensor:
+            apagar_led_sensor(sensor)
+        if uart and uart.is_open:
+            uart.close()
+
+    if usuario_id is None:
+        return None, 'No se encontró una huella coincidente. Verifica que esté registrada.'
+    usuario = User.objects.filter(pk=usuario_id, is_active=True).first()
+    if usuario is None:
+        return None, 'No se encontró un usuario activo con esa huella.'
+    return usuario, None
 
 
 def _solicitante_valido(usuario_id):
@@ -71,47 +114,22 @@ class RegistrarPrestamoPaso1View(WizardStepMixin, TemplateView):
     def post(self, request):
         correo = request.POST.get('correo', '').strip()
         metodo = request.POST.get('metodo')
-        solicitante = get_user_model().objects.filter(
-            email__iexact=correo, is_active=True
-        ).first()
-        if solicitante is None:
-            return self.error('No se encontró un usuario activo con ese correo.', correo, metodo)
+        solicitante, error = autenticar_usuario(
+            correo,
+            metodo,
+            request.POST.get('contrasena', ''),
+        )
+        if error:
+            return self.error(error, correo, metodo)
         if solicitante.mis_sanciones.filter(estado='activa').exists():
             return self.error(
                 'El solicitante tiene sanciones activas y no puede pedir préstamos.',
                 correo, metodo,
             )
 
-        if metodo == 'huella':
-            error = self.verificar_huella(solicitante)
-        elif metodo == 'contrasena':
-            error = (
-                None if solicitante.check_password(request.POST.get('contrasena', ''))
-                else 'La contraseña no es correcta.'
-            )
-        else:
-            error = 'Selecciona un método de autenticación.'
-        if error:
-            return self.error(error, correo, metodo)
-
         # Se reinicia el contexto para no arrastrar selecciones de otro solicitante.
         request.session[SESSION_KEY] = {'usuario_id': solicitante.pk}
         return redirect('registrar_prestamo_paso2')
-
-    @staticmethod
-    def verificar_huella(solicitante):
-        if not solicitante.huella_template:
-            return 'El usuario no tiene una huella registrada.'
-        uart = None
-        try:
-            sensor, uart = get_sensor()
-            coincide = verify_fingerprint_from_db(sensor, solicitante.huella_template)
-        except (OSError, RuntimeError) as error:
-            return f'No se pudo verificar la huella: {error}'
-        finally:
-            if uart and uart.is_open:
-                uart.close()
-        return None if coincide else 'La huella no coincide.'
 
     def error(self, mensaje, correo, metodo):
         context = self.get_context_data(registro_error=mensaje, correo=correo, metodo=metodo)

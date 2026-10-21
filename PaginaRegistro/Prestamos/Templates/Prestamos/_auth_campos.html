@@ -1,20 +1,11 @@
-<div>
+<div data-auth-email>
     <label class="field-label" for="correo-{{ prefijo }}">Correo</label>
     <input id="correo-{{ prefijo }}" class="field" type="email" name="correo" value="{{ correo|default:'' }}" required autocomplete="email" placeholder="correo@ejemplo.com">
+    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Solo es necesario para autenticar con contraseña.</p>
 </div>
 <fieldset class="space-y-4 border-0 p-0" data-auth-fields>
     <legend class="text-sm font-semibold text-ink dark:text-slate-100">Método de autenticación</legend>
     <div class="grid gap-3 sm:grid-cols-2">
-        <label class="choice">
-            <input type="radio" class="sr-only" name="metodo" value="contrasena" {% if metodo != 'huella' %}checked{% endif %}>
-            <span class="choice-icon" aria-hidden="true">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
-            </span>
-            <span>
-                <span class="choice-title">Contraseña</span>
-                <span class="choice-help">La persona escribe la contraseña de su cuenta.</span>
-            </span>
-        </label>
         <label class="choice">
             <input type="radio" class="sr-only" name="metodo" value="huella" {% if metodo == 'huella' %}checked{% endif %}>
             <span class="choice-icon" aria-hidden="true">
@@ -25,10 +16,20 @@
                 <span class="choice-help">Al continuar, coloca el dedo en el sensor.</span>
             </span>
         </label>
+        <label class="choice">
+            <input type="radio" class="sr-only" name="metodo" value="contrasena" {% if metodo != 'huella' %}checked{% endif %}>
+            <span class="choice-icon" aria-hidden="true">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+            </span>
+            <span>
+                <span class="choice-title">Correo y Contraseña</span>
+                <span class="choice-help">Identificación manual.</span>
+            </span>
+        </label>
     </div>
     <div data-auth-pass>
         <label class="field-label" for="contrasena-{{ prefijo }}">Contraseña</label>
-        <input id="contrasena-{{ prefijo }}" class="field" type="password" name="contrasena" autocomplete="current-password">
+        <input id="contrasena-{{ prefijo }}" class="field" type="password" name="contrasena" autocomplete="current-password" required>
     </div>
-    <p data-auth-huella class="callout hidden">Pide a la persona que coloque el dedo en el sensor y después pulsa continuar. No hace falta escribir contraseña.</p>
+    <p data-auth-huella class="callout hidden">Coloca el dedo en el sensor y continúa. El sistema buscará la coincidencia sin solicitar correo ni contraseña.</p>
 </fieldset>

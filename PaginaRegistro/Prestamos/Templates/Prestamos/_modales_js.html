@@ -13,8 +13,16 @@
     document.querySelectorAll('[data-auth-form]').forEach((form) => {
         const actualizar = () => {
             const huella = form.elements['metodo'].value === 'huella';
-            form.querySelector('[data-auth-pass]').classList.toggle('hidden', huella);
-            form.querySelector('[data-auth-huella]').classList.toggle('hidden', !huella);
+            const correo = form.querySelector('[data-auth-email] input[name="correo"]');
+            const contrasena = form.querySelector('[data-auth-pass] input[name="contrasena"]');
+            const email = form.querySelector('[data-auth-email]');
+            const pass = form.querySelector('[data-auth-pass]');
+            const sensor = form.querySelector('[data-auth-huella]');
+            if (email) email.classList.toggle('hidden', huella);
+            if (correo) correo.required = !huella;
+            if (pass) pass.classList.toggle('hidden', huella);
+            if (contrasena) contrasena.required = !huella;
+            if (sensor) sensor.classList.toggle('hidden', !huella);
         };
         form.addEventListener('change', actualizar);
         actualizar();
