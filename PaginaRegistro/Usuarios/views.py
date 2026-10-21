@@ -9,7 +9,13 @@ from django.http import JsonResponse
 from .forms import EmailLoginForm, StaffSignUpForm, NormalUserCreationForm
 from .models import CustomUser, EntidadAcademica, Programa
 from . import hardware
-from .hardware import verify_fingerprint_from_db, get_sensor, enroll_fingerprint_to_db
+from .hardware import (
+    get_sensor,
+    enroll_fingerprint_to_db,
+    capturar_minucias_en_vivo,
+    apagar_led_sensor,
+)
+from .biometria_cache import IndiceBiometricoRAM
 from django.shortcuts import get_object_or_404
 
 

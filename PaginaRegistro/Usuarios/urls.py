@@ -5,7 +5,7 @@ from . import views
 urlpatterns = [
 
     # 1. Rutas de Autenticación Principal
-    path('login/', views.CustomLoginView.as_view(), name='login'), 
+    path('', views.CustomLoginView.as_view(), name='login'), 
     path('logout/', LogoutView.as_view(next_page='login'), name='logout'),
     
     # 2. Rutas de Registro de Usuarios
