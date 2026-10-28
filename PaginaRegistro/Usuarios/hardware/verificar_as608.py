@@ -436,11 +436,14 @@ def buscar_baud(
     timeout: float,
     *,
     anunciar: bool,
+    avisar=None,
 ) -> tuple[int, Paquete] | None:
     clave = password.to_bytes(4, "big")
     ruido = b""
     checksums = 0
     for baud in bauds:
+        if avisar:
+            avisar(f"Probando {baud} baudios...")
         if anunciar:
             print(f"  Probando {baud} baud...")
         sensor.checksums_malos = 0

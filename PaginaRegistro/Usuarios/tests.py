@@ -1,3 +1,5 @@
+import base64
+import json
 import os
 
 from django.test import SimpleTestCase, TestCase
@@ -87,24 +89,54 @@ class UserRegistrationFormTests(TestCase):
         self.assertEqual(temp_data['programa_id'], programa.pk)
         self.assertFalse(temp_data['is_staff'])
 
+        import numpy as np
+
         uart = Mock(is_open=True)
         sensor = Mock()
+        pixeles = bytes([180]) * (256 * 288)
+        minucia = np.zeros((12, 4), dtype=np.float32)
+        plantilla = np.ones((10, 4), dtype=np.float32)
         with (
             patch('Usuarios.views.get_sensor', return_value=(sensor, uart)),
             patch(
-                'Usuarios.views.enroll_fingerprint_to_db',
-                return_value=b'template-biometrico',
-            ) as enroll,
+                'Usuarios.views.capturar_toma_para_pantalla',
+                return_value=(pixeles, minucia),
+            ) as capturar,
+            patch('Usuarios.views.fusionar_plantilla', return_value=plantilla),
             patch('Usuarios.views.IndiceBiometricoRAM.actualizar_usuario') as update_index,
         ):
-            response = self.client.post(reverse('registrar_huella'))
+            for numero in range(1, 4):
+                response = self.client.post(
+                    reverse('registrar_huella'),
+                    data=json.dumps({'accion': 'capturar'}),
+                    content_type='application/json',
+                )
+                self.assertEqual(response.status_code, 200)
+                cuerpo = response.json()
+                self.assertEqual(cuerpo['status'], 'captura')
+                self.assertEqual(cuerpo['toma'], numero)
+                self.assertFalse(cuerpo['completo'])
+                self.assertTrue(cuerpo['imagen'].startswith('data:image/png;base64,'))
+                png = base64.b64decode(cuerpo['imagen'].split(',', 1)[1])
+                self.assertTrue(png.startswith(b'\x89PNG'))
+                self.assertFalse(
+                    get_user_model().objects.filter(email='alumno@example.com').exists()
+                )
+
+            response = self.client.post(
+                reverse('registrar_huella'),
+                data=json.dumps({'accion': 'capturar'}),
+                content_type='application/json',
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['status'], 'success')
+        self.assertTrue(response.json()['completo'])
+        self.assertTrue(response.json()['imagen'].startswith('data:image/png;base64,'))
         usuario = get_user_model().objects.get(email='alumno@example.com')
-        enroll.assert_called_once_with(sensor)
-        update_index.assert_called_once_with(usuario.pk, b'template-biometrico')
-        uart.close.assert_called_once()
+        self.assertEqual(capturar.call_count, 4)
+        update_index.assert_called_once_with(usuario.pk, bytes(usuario.huella_template))
+        self.assertEqual(uart.close.call_count, 4)
         self.assertEqual(usuario.numero_cuenta, '123456789')
         self.assertEqual(usuario.numero_trabajador, 'TRAB-10')
         self.assertEqual(usuario.rfc, 'LOPA000101ABC')
@@ -114,6 +146,66 @@ class UserRegistrationFormTests(TestCase):
         self.assertEqual(usuario.telefono_celular, '5512345678')
         self.assertEqual(usuario.entidad_academica_id, entidad.pk)
         self.assertEqual(usuario.programa_id, programa.pk)
+
+    def test_failed_capture_keeps_previous_images_and_restart_clears_them(self):
+        import numpy as np
+
+        sesion = self.client.session
+        sesion['temp_user_data'] = {
+            'email': 'alumno@example.com',
+            'nombre': 'Ana',
+            'apellidos': 'López',
+            'password': 'hashed',
+            'is_staff': False,
+        }
+        sesion.save()
+        pixeles = bytes([90]) * (256 * 288)
+        minucia = np.zeros((12, 4), dtype=np.float32)
+        uart = Mock(is_open=True)
+        with (
+            patch('Usuarios.views.get_sensor', return_value=(Mock(), uart)),
+            patch(
+                'Usuarios.views.capturar_toma_para_pantalla',
+                side_effect=[(pixeles, minucia), RuntimeError('No llegó el dedo a tiempo.')],
+            ),
+        ):
+            primera = self.client.post(
+                reverse('registrar_huella'),
+                data=json.dumps({'accion': 'capturar'}),
+                content_type='application/json',
+            )
+            segunda = self.client.post(
+                reverse('registrar_huella'),
+                data=json.dumps({'accion': 'capturar'}),
+                content_type='application/json',
+            )
+
+        self.assertEqual(primera.json()['toma'], 1)
+        self.assertEqual(segunda.status_code, 400)
+        self.assertEqual(segunda.json()['toma'], 1)
+        self.assertEqual(len(self.client.session['huella_tomas']), 1)
+
+        reinicio = self.client.post(
+            reverse('registrar_huella'),
+            data=json.dumps({'accion': 'reiniciar'}),
+            content_type='application/json',
+        )
+        self.assertEqual(reinicio.status_code, 200)
+        self.assertEqual(reinicio.json()['toma'], 0)
+        self.assertEqual(self.client.session['huella_tomas'], [])
+
+    def test_sensor_status_follows_live_updates(self):
+        from Usuarios.hardware.hardware import _estado
+
+        _estado('Toma 2 de 4. Apoya el centro del dedo.')
+        try:
+            response = self.client.get(reverse('estado_sensor'))
+            self.assertEqual(
+                response.json()['mensaje'],
+                'Toma 2 de 4. Apoya el centro del dedo.',
+            )
+        finally:
+            _estado('Iniciando...')
 
     def test_entidades_endpoint_returns_only_entities_of_selected_program(self):
         from .models import EntidadAcademica, Programa

@@ -32,9 +32,11 @@ barre 67200, 57600, 9600 y el resto. `HUELLA_PUERTO` y `HUELLA_BAUD` la fuerzan.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import time
+import warnings
 import zlib
 from pathlib import Path
 
@@ -43,7 +45,7 @@ import serial
 import serial.tools.list_ports
 
 try:
-    from .huella_pc import _quitar_bandas, analizar, decodificar_imagen, escribir_png
+    from .huella_pc import _quitar_bandas, analizar, decodificar_imagen, escribir_png, png_de_pixeles
     from .prueba_gabor import (
         MIN_COMUNES,
         UMBRAL,
@@ -62,7 +64,7 @@ try:
         elegir_puerto,
     )
 except ImportError:
-    from huella_pc import _quitar_bandas, analizar, decodificar_imagen, escribir_png
+    from huella_pc import _quitar_bandas, analizar, decodificar_imagen, escribir_png, png_de_pixeles
     from prueba_gabor import (
         MIN_COMUNES,
         UMBRAL,
@@ -102,6 +104,15 @@ AVISOS = (
 def _estado(texto: str) -> None:
     global ESTADO_SENSOR
     ESTADO_SENSOR = texto
+
+
+def estado_sensor() -> str:
+    """Texto vivo del lector. Hay que llamarlo: el nombre importado no se actualiza."""
+    return ESTADO_SENSOR
+
+
+def publicar_estado(texto: str) -> None:
+    _estado(texto)
 
 
 def encontrar_puerto_arduino():
@@ -167,7 +178,7 @@ def get_sensor(puerto: str | None = None):
         raise RuntimeError(f"No se pudo abrir {puerto}: {exc}") from exc
     sensor = AS608(serie)
     try:
-        baud_ok, respuesta = acordar_baud(sensor, baud)
+        baud_ok, respuesta = acordar_baud(sensor, baud, avisar=_estado)
     except SinRespuesta:
         ruido = sensor.ultimo_ruido
         serie.close()
@@ -217,7 +228,10 @@ def _leer_foto(sensor: AS608) -> tuple[bytes | None, int | None]:
 def _minucias_de_foto(pixeles: bytes) -> np.ndarray | None:
     limpio = _quitar_bandas(pixeles, ANCHO_IMAGEN, ALTO_IMAGEN)
     imagen = np.frombuffer(limpio, dtype=np.uint8).reshape((ALTO_IMAGEN, ANCHO_IMAGEN)).copy()
-    minucias = extraer_minucias(imagen, verbose=False)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning, module=r"fingerprint_feature_extractor")
+        warnings.filterwarnings("ignore", category=FutureWarning, module=r"skimage")
+        minucias = extraer_minucias(imagen, verbose=False)
     if minucias is None or len(minucias) < MIN_COMUNES:
         return None
     return minucias
@@ -328,6 +342,32 @@ def _capturar_toma(
     raise RuntimeError(
         f"No pude aceptar la toma {numero}. Limpia el lector y el dedo, y apoya otra vez el centro."
     )
+
+
+def capturar_toma_para_pantalla(
+    sensor: AS608,
+    numero: int,
+    primera: np.ndarray | None,
+    espera: float = ESPERA_QUIETO,
+    limite_dedo: float = ESPERA_DEDO,
+) -> tuple[bytes, np.ndarray]:
+    """Una sola toma. La página muestra el PNG y espera a que la persona continúe."""
+    if numero < 1 or numero > TOMA_TOTAL:
+        raise RuntimeError(f"La toma {numero} no forma parte del registro de {TOMA_TOTAL}.")
+    return _capturar_toma(
+        sensor,
+        numero,
+        primera,
+        espera,
+        CARPETA,
+        limite_dedo,
+        aviso=AVISOS[numero - 1].format(n=numero, total=TOMA_TOTAL),
+    )
+
+
+def png_data_url(pixeles: bytes) -> str:
+    png = png_de_pixeles(pixeles, ANCHO_IMAGEN, ALTO_IMAGEN)
+    return "data:image/png;base64," + base64.b64encode(png).decode("ascii")
 
 
 def serializar_template(matriz_minucias: np.ndarray) -> bytes:

@@ -393,7 +393,9 @@ def guardar_vista(carpeta: Path, pixeles: bytes, ancho: int, alto: int) -> Path:
     return ruta
 
 
-def escribir_png(ruta: Path, pixeles: bytes, ancho: int, alto: int) -> None:
+def png_de_pixeles(pixeles: bytes, ancho: int, alto: int) -> bytes:
+    """PNG en escala de grises, listo para mostrarse en el navegador."""
+
     def trozo(etiqueta: bytes, datos: bytes) -> bytes:
         crc = zlib.crc32(etiqueta + datos) & 0xFFFFFFFF
         return struct.pack(">I", len(datos)) + etiqueta + datos + struct.pack(">I", crc)
@@ -405,8 +407,11 @@ def escribir_png(ruta: Path, pixeles: bytes, ancho: int, alto: int) -> None:
         filas.extend(pixeles[inicio : inicio + ancho])
     ihdr = struct.pack(">IIBBBBB", ancho, alto, 8, 0, 0, 0, 0)
     png = b"\x89PNG\r\n\x1a\n" + trozo(b"IHDR", ihdr) + trozo(b"IDAT", zlib.compress(bytes(filas), 6))
-    png += trozo(b"IEND", b"")
-    ruta.write_bytes(png)
+    return png + trozo(b"IEND", b"")
+
+
+def escribir_png(ruta: Path, pixeles: bytes, ancho: int, alto: int) -> None:
+    ruta.write_bytes(png_de_pixeles(pixeles, ancho, alto))
 
 
 def _a_json(minucias: list[Minucia]) -> list[dict]:
