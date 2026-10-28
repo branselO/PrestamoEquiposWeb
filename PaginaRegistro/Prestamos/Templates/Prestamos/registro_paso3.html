@@ -34,7 +34,6 @@
             {% csrf_token %}
             <p class="kicker">Confirmación</p>
             <h2 class="text-lg font-bold tracking-tight text-unam-600 dark:text-blue-300">Fecha de devolución</h2>
-            <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-300">El préstamo se registra hasta el final del día que elijas.</p>
             <div>
                 <label class="field-label" for="fecha-devolucion">Fecha estimada</label>
                 <input id="fecha-devolucion" class="field" type="date" name="fecha_devolucion" min="{{ fecha_minima }}" required>

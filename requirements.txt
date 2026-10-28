@@ -1,5 +1,9 @@
 Django
 pyserial
 adafruit-circuitpython-fingerprint
+numpy
+opencv-python-headless
+fingerprint-enhancer
+fingerprint-feature-extractor
 Pillow
 psycopg2-binary

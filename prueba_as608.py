@@ -3,8 +3,8 @@ import time
 import adafruit_fingerprint
 
 # Asegúrate de que este puerto sea el correcto
-UART_PORT = '/dev/cu.usbmodem11201' 
-BAUDRATE = 57600 # La velocidad real oculta del sensor
+UART_PORT = 'COM4' 
+BAUDRATE = 67200 # La velocidad real oculta del sensor
 
 def probar_sensor():
     print(f"Abriendo puerto {UART_PORT} a {BAUDRATE} baudios en modo Zombie...")

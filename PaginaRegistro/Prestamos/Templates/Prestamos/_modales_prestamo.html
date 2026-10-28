@@ -27,7 +27,7 @@
         {% include 'Prestamos/_devolucion_detalles.html' %}
         <div class="space-y-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-600 dark:bg-slate-800/60">
             <p class="text-sm font-semibold text-ink dark:text-slate-100">Verificación de identidad</p>
-            {% include 'Prestamos/_auth_campos.html' with prefijo=prestamo.id correo='' metodo='contrasena' %}
+            {% include 'Prestamos/_auth_campos.html' with prefijo=prestamo.id correo='' %}
         </div>
         <div class="actions sm:justify-end">
             <button type="button" class="btn btn-secondary" data-close-return>Cancelar</button>

@@ -1,6 +1,10 @@
 import threading
 import time
-from .hardware import deserializar_template, comparar_minucias_fast
+
+try:
+    from .hardware import comparar_minucias_fast, deserializar_template
+except ImportError:
+    from hardware import comparar_minucias_fast, deserializar_template
 
 class IndiceBiometricoRAM:
     """
@@ -39,7 +43,7 @@ class IndiceBiometricoRAM:
                 cls._padron.pop(usuario_id, None)
 
     @classmethod
-    def identificar_1_a_N(cls, m_captura, ModeloUsuario, umbral=0.30):
+    def identificar_1_a_N(cls, m_captura, ModeloUsuario, umbral=0.35):
         """
         Recorre miles de usuarios en RAM usando NumPy vectorizado.
         Retorna (usuario_id, score, tiempo_ms).

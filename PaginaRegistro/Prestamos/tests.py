@@ -114,6 +114,14 @@ class RegistrarPrestamoTests(TestCase):
         self.assertEqual(self.dispositivo.estado, 'prestado')
         self.assertNotIn('registro_prestamo', self.client.session)
 
+    def test_fingerprint_is_default_for_user_authentication_forms(self):
+        for url in (self.url, reverse('devolucion_login')):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+
+                self.assertContains(response, 'value="huella" checked')
+                self.assertNotContains(response, 'value="contrasena" checked')
+
     def test_step_two_filters_available_devices_by_inventory_code(self):
         self.autenticar()
         otro_dispositivo = Dispositivo.objects.create(
@@ -153,6 +161,7 @@ class RegistrarPrestamoTests(TestCase):
         response = self.autenticar('incorrecta')
 
         self.assertContains(response, 'La contraseña no es correcta.')
+        self.assertContains(response, 'value="contrasena" checked')
         self.assertNotIn('registro_prestamo', self.client.session)
         self.assertEqual(Prestamo.objects.count(), 0)
 
