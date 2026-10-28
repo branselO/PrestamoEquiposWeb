@@ -1,4 +1,6 @@
-from django.test import TestCase
+import os
+
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from unittest.mock import Mock, patch
@@ -301,3 +303,45 @@ class LoginFlowTests(TestCase):
         capture_minutiae.assert_called_once_with(sensor)
         compare_minutiae.assert_called_once()
         uart.close.assert_called_once()
+
+
+class _Puerto:
+    def __init__(self, device, description="", manufacturer="", product="", hwid=""):
+        self.device = device
+        self.description = description
+        self.manufacturer = manufacturer
+        self.product = product
+        self.hwid = hwid
+
+
+class DeteccionPuertoTests(SimpleTestCase):
+    def test_elige_el_cp210_aunque_el_numero_com_cambie(self):
+        from Usuarios.hardware.verificar_as608 import elegir_puerto
+
+        puertos = [
+            _Puerto("COM3", description="USB Serial Device"),
+            _Puerto(
+                "COM12",
+                description="Silicon Labs CP210x USB to UART Bridge (COM12)",
+                manufacturer="Silicon Labs",
+                product="CP210x USB to UART Bridge",
+            ),
+        ]
+        self.assertEqual(elegir_puerto(puertos), "COM12")
+
+    def test_el_puerto_forzado_y_el_ultimo_baud_tienen_prioridad(self):
+        from Usuarios.hardware import hardware as lector
+
+        anterior = lector._baud_detectado
+        lector._baud_detectado = 9600
+        try:
+            entorno = os.environ.copy()
+            entorno.pop("HUELLA_BAUD", None)
+            entorno["HUELLA_PUERTO"] = "COM5"
+            with patch.dict(os.environ, entorno, clear=True):
+                self.assertEqual(lector.encontrar_puerto_arduino(), "COM5")
+                self.assertEqual(lector._baud_pedido(), 9600)
+            with patch.dict(os.environ, {"HUELLA_BAUD": "57600"}, clear=False):
+                self.assertEqual(lector._baud_pedido(), 57600)
+        finally:
+            lector._baud_detectado = anterior

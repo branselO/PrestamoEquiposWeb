@@ -40,7 +40,9 @@ except ImportError:
 CABECERA = b"\xEF\x01"
 DIRECCION_FABRICA = 0xFFFFFFFF
 BAUD_FABRICA = 57600
-BAUDS_CONOCIDOS = (57600, 9600, 19200, 38400, 115200, 28800, 48000, 67200, 76800, 86400, 96000, 105600)
+# 67200 es la velocidad de este módulo cuando el registro dice 57600 (reloj 14/12).
+# 9600 aparece cuando Windows reinicia el CP210x. El barrido las prueba todas.
+BAUDS_CONOCIDOS = (67200, 57600, 9600, 115200, 38400, 19200, 48000, 28800, 76800, 86400, 96000, 105600)
 
 COMANDO = 0x01
 ACK = 0x07
@@ -1578,26 +1580,55 @@ def describir_puerto(puerto) -> str:
     return puerto.device
 
 
+def _texto_puerto(puerto) -> str:
+    partes = [
+        getattr(puerto, "device", "") or "",
+        getattr(puerto, "name", "") or "",
+        getattr(puerto, "description", "") or "",
+        getattr(puerto, "manufacturer", "") or "",
+        getattr(puerto, "product", "") or "",
+        getattr(puerto, "hwid", "") or "",
+    ]
+    return " ".join(partes).upper()
+
+
 def puntaje_puerto(puerto) -> int:
-    texto = f"{puerto.device} {puerto.description or ''} {puerto.hwid or ''} {puerto.manufacturer or ''}".upper()
-    if puerto.device.startswith("/dev/ttyS"):
+    texto = _texto_puerto(puerto)
+    dispositivo = str(getattr(puerto, "device", "") or "")
+    if dispositivo.startswith("/dev/ttyS"):
         return -5
     puntaje = 0
-    for clave in ("CH340", "CH341", "CP210", "FTDI", "FT232", "PL2303", "UART", "USB SERIAL", "USB-SERIAL"):
+    if "CP210" in texto or "SILICON LABS" in texto:
+        puntaje += 10
+    for clave in ("CH340", "CH341", "FTDI", "FT232", "PL2303"):
+        if clave in texto:
+            puntaje += 4
+    for clave in ("USB TO UART", "USB SERIAL", "USB-SERIAL", "UART"):
         if clave in texto:
             puntaje += 2
-    dispositivo = puerto.device.upper()
-    if "TTYUSB" in dispositivo or "TTYACM" in dispositivo or dispositivo.startswith("COM"):
+    dispositivo = dispositivo.upper()
+    if any(marca in dispositivo for marca in ("TTYUSB", "TTYACM", "USBSERIAL", "USBMODEM")) or dispositivo.startswith("COM"):
         puntaje += 1
     return puntaje
 
 
 def elegir_puerto(puertos) -> str | None:
-    if len(puertos) == 1 and puntaje_puerto(puertos[0]) >= 0:
-        return puertos[0].device
-    destacados = [puerto for puerto in puertos if puntaje_puerto(puerto) >= 2]
-    if len(destacados) == 1:
-        return destacados[0].device
+    """Elige el adaptador del sensor. El CP210x gana aunque el número COM cambie."""
+    if not puertos:
+        return None
+    clasificados = sorted(puertos, key=puntaje_puerto, reverse=True)
+    mejor = clasificados[0]
+    mejor_puntaje = puntaje_puerto(mejor)
+    if mejor_puntaje < 2:
+        if len(clasificados) == 1 and mejor_puntaje >= 0:
+            return mejor.device
+        return None
+    empatados = [puerto for puerto in clasificados if puntaje_puerto(puerto) == mejor_puntaje]
+    if len(empatados) == 1:
+        return mejor.device
+    cp210 = [puerto for puerto in empatados if "CP210" in _texto_puerto(puerto) or "SILICON LABS" in _texto_puerto(puerto)]
+    if cp210:
+        return cp210[0].device
     return None
 
 

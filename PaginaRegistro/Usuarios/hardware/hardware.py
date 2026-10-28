@@ -24,9 +24,10 @@ en bool y hay que pasarlo a 0/255. Las rayas de la lámpara se quitan antes de
 medir. El PNG guarda los píxeles originales.
 
 En Django, `prueba_gabor.py`, `verificar_as608.py` y `huella_pc.py` tienen que
-estar en el mismo paquete o en el PYTHONPATH. El puerto se puede forzar con
-`HUELLA_PUERTO` (en esta máquina, COM4). `HUELLA_BAUD` existe por si otro módulo
-contesta a otra velocidad; el valor de aquí es 67200.
+estar en el mismo paquete o en el PYTHONPATH. El puerto se detecta solo y
+prefiere el puente Silicon Labs CP210x, con el número COM que Windows le
+asigne. La velocidad también: prueba la última que contestó y, si no responde,
+barre 67200, 57600, 9600 y el resto. `HUELLA_PUERTO` y `HUELLA_BAUD` la fuerzan.
 """
 
 from __future__ import annotations
@@ -58,6 +59,7 @@ try:
         CAPTURAR_IMAGEN,
         TIEMPO_DESCARGA,
         SinRespuesta,
+        elegir_puerto,
     )
 except ImportError:
     from huella_pc import _quitar_bandas, analizar, decodificar_imagen, escribir_png
@@ -76,9 +78,11 @@ except ImportError:
         CAPTURAR_IMAGEN,
         TIEMPO_DESCARGA,
         SinRespuesta,
+        elegir_puerto,
     )
 
 BAUDRATE = 67200
+_baud_detectado: int | None = None
 TOMA_TOTAL = 4
 ESPERA_QUIETO = 3.0
 ESPERA_DEDO = 60.0
@@ -101,25 +105,28 @@ def _estado(texto: str) -> None:
 
 
 def encontrar_puerto_arduino():
-    """Escanea y devuelve el puerto del sensor en macOS, Linux o Windows."""
+    """Devuelve el CP210x (Silicon Labs) o, si no hay otro, el único puerto serie."""
     forzado = os.environ.get("HUELLA_PUERTO")
     if forzado:
         return forzado
-    puertos = serial.tools.list_ports.comports()
-    for puerto in puertos:
-        if "usbmodem" in puerto.device or "usbserial" in puerto.device:
-            return puerto.device
-        elif any(k in (puerto.description or "") for k in ("USB", "CH340", "CP210", "FT232")) or "ttyUSB" in puerto.device:
-            return puerto.device
-    return None
+    puertos = list(serial.tools.list_ports.comports())
+    elegido = elegir_puerto(puertos)
+    if elegido:
+        _estado(f"Puerto detectado: {elegido}")
+    return elegido
 
 
 def _baud_pedido() -> int:
-    texto = os.environ.get("HUELLA_BAUD", str(BAUDRATE))
-    try:
-        return int(texto)
-    except ValueError:
-        return BAUDRATE
+    """Última velocidad que contestó, o la forzada con HUELLA_BAUD."""
+    texto = os.environ.get("HUELLA_BAUD")
+    if texto:
+        try:
+            return int(texto)
+        except ValueError:
+            pass
+    if _baud_detectado:
+        return _baud_detectado
+    return BAUDRATE
 
 
 def _abrir_serie(puerto: str, baud: int):
@@ -143,12 +150,13 @@ def _abrir_serie(puerto: str, baud: int):
 
 
 def get_sensor(puerto: str | None = None):
-    """Abre el AS608 a 67200 y devuelve el lector y el puerto serie."""
+    """Abre el AS608 en el puerto y la velocidad que contesten, y devuelve lector y serie."""
     puerto = puerto or encontrar_puerto_arduino()
     if not puerto:
         _estado("Sensor no detectado.")
         raise RuntimeError(
-            "Sensor/Adaptador USB no detectado. Revisa la conexión USB o define HUELLA_PUERTO."
+            "No encontré el adaptador Silicon Labs CP210x. "
+            "Conéctalo (aparece como USB to UART Bridge) o define HUELLA_PUERTO."
         )
     baud = _baud_pedido()
     _estado(f"Abriendo {puerto} a {baud}...")
@@ -180,10 +188,9 @@ def get_sensor(puerto: str | None = None):
         _estado("Contraseña rechazada.")
         codigo = respuesta.datos[0] if respuesta.datos else 0xFF
         raise RuntimeError(f"Contraseña rechazada, código 0x{codigo:02X}.")
-    if baud_ok != baud:
-        _estado(f"Sensor listo. Contestó a {baud_ok}.")
-    else:
-        _estado("Sensor listo.")
+    global _baud_detectado
+    _baud_detectado = baud_ok
+    _estado(f"Sensor listo en {puerto} a {baud_ok}.")
     return sensor, serie
 
 
