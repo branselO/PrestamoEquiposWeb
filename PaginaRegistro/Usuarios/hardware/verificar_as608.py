@@ -14,16 +14,28 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NoReturn
 
-from huella_pc import (
-    UMBRAL,
-    analizar,
-    borrar_registro,
-    buscar_mejor,
-    cargar_registros,
-    decodificar_imagen,
-    guardar_analisis,
-    guardar_vista,
-)
+try:
+    from .huella_pc import (
+        UMBRAL,
+        analizar,
+        borrar_registro,
+        buscar_mejor,
+        cargar_registros,
+        decodificar_imagen,
+        guardar_analisis,
+        guardar_vista,
+    )
+except ImportError:
+    from huella_pc import (
+        UMBRAL,
+        analizar,
+        borrar_registro,
+        buscar_mejor,
+        cargar_registros,
+        decodificar_imagen,
+        guardar_analisis,
+        guardar_vista,
+    )
 
 CABECERA = b"\xEF\x01"
 DIRECCION_FABRICA = 0xFFFFFFFF

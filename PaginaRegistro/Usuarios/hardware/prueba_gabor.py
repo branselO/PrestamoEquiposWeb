@@ -20,21 +20,38 @@ from pathlib import Path
 
 import numpy as np
 
-from huella_pc import _quitar_bandas, decodificar_imagen, escribir_png
-from verificar_as608 import (
-    ALTO_IMAGEN,
-    ANCHO_IMAGEN,
-    AS608,
-    BAUDS_CONOCIDOS,
-    CAPTURAR_IMAGEN,
-    Paquete,
-    TIEMPO_DESCARGA,
-    SinRespuesta,
-    abrir_puerto,
-    buscar_baud,
-    cargar_serial,
-    hex_bytes,
-)
+try:
+    from .huella_pc import _quitar_bandas, decodificar_imagen, escribir_png
+    from .verificar_as608 import (
+        ALTO_IMAGEN,
+        ANCHO_IMAGEN,
+        AS608,
+        BAUDS_CONOCIDOS,
+        CAPTURAR_IMAGEN,
+        Paquete,
+        TIEMPO_DESCARGA,
+        SinRespuesta,
+        abrir_puerto,
+        buscar_baud,
+        cargar_serial,
+        hex_bytes,
+    )
+except ImportError:
+    from huella_pc import _quitar_bandas, decodificar_imagen, escribir_png
+    from verificar_as608 import (
+        ALTO_IMAGEN,
+        ANCHO_IMAGEN,
+        AS608,
+        BAUDS_CONOCIDOS,
+        CAPTURAR_IMAGEN,
+        Paquete,
+        TIEMPO_DESCARGA,
+        SinRespuesta,
+        abrir_puerto,
+        buscar_baud,
+        cargar_serial,
+        hex_bytes,
+    )
 
 BAUD = 67200
 UMBRAL = 0.35

@@ -17,7 +17,7 @@ from .hardware import (
     comparar_minucias_fast,
     apagar_led_sensor,
 )
-from .biometria_cache import IndiceBiometricoRAM
+from .hardware.biometria_cache import IndiceBiometricoRAM
 from django.shortcuts import get_object_or_404
 
 

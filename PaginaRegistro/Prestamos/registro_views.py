@@ -16,7 +16,7 @@ from django.utils.dateparse import parse_date
 from django.views.generic import TemplateView
 
 from Inventario.models import Categoria, Dispositivo
-from Usuarios.biometria_cache import IndiceBiometricoRAM
+from Usuarios.hardware.biometria_cache import IndiceBiometricoRAM
 from Usuarios.hardware import apagar_led_sensor, capturar_minucias_en_vivo, get_sensor
 from .models import DetallePrestamo, Prestamo
 from .views import StaffRequiredMixin

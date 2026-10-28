@@ -39,24 +39,44 @@ from pathlib import Path
 
 import numpy as np
 import serial
+import serial.tools.list_ports
 
-from huella_pc import _quitar_bandas, analizar, decodificar_imagen, escribir_png
-from prueba_gabor import (
-    MIN_COMUNES,
-    UMBRAL,
-    acordar_baud,
-    comparar_rapido,
-    extraer_minucias,
-    fusionar_plantilla,
-)
-from verificar_as608 import (
-    ALTO_IMAGEN,
-    ANCHO_IMAGEN,
-    AS608,
-    CAPTURAR_IMAGEN,
-    TIEMPO_DESCARGA,
-    SinRespuesta,
-)
+try:
+    from .huella_pc import _quitar_bandas, analizar, decodificar_imagen, escribir_png
+    from .prueba_gabor import (
+        MIN_COMUNES,
+        UMBRAL,
+        acordar_baud,
+        comparar_rapido,
+        extraer_minucias,
+        fusionar_plantilla,
+    )
+    from .verificar_as608 import (
+        ALTO_IMAGEN,
+        ANCHO_IMAGEN,
+        AS608,
+        CAPTURAR_IMAGEN,
+        TIEMPO_DESCARGA,
+        SinRespuesta,
+    )
+except ImportError:
+    from huella_pc import _quitar_bandas, analizar, decodificar_imagen, escribir_png
+    from prueba_gabor import (
+        MIN_COMUNES,
+        UMBRAL,
+        acordar_baud,
+        comparar_rapido,
+        extraer_minucias,
+        fusionar_plantilla,
+    )
+    from verificar_as608 import (
+        ALTO_IMAGEN,
+        ANCHO_IMAGEN,
+        AS608,
+        CAPTURAR_IMAGEN,
+        TIEMPO_DESCARGA,
+        SinRespuesta,
+    )
 
 BAUDRATE = 67200
 TOMA_TOTAL = 4
