@@ -35,8 +35,9 @@
             <p class="kicker">Confirmación</p>
             <h2 class="text-lg font-bold tracking-tight text-unam-600 dark:text-blue-300">Fecha de devolución</h2>
             <div>
-                <label class="field-label" for="fecha-devolucion">Fecha estimada</label>
-                <input id="fecha-devolucion" class="field" type="date" name="fecha_devolucion" min="{{ fecha_minima }}" required>
+                <label class="field-label" for="fecha-devolucion">Fecha y hora</label>
+                <input id="fecha-devolucion" class="field" type="datetime-local" name="fecha_devolucion" value="{{ fecha_sugerida }}" min="{{ fecha_minima }}" required>
+                <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400">Si no la cambias, la devolución queda para dentro de dos horas.</p>
             </div>
             <div class="actions">
                 <button type="submit" class="btn btn-primary sm:w-full">Confirmar préstamo</button>

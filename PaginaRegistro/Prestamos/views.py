@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.views.generic import TemplateView, View
 
 from Inventario.models import Dispositivo
+from .correos import confirmar_devolucion, confirmar_sancion
 from .models import DetallePrestamo, Prestamo, Sancion
 
 
@@ -105,7 +106,12 @@ class RegistrarDevolucionView(StaffRequiredMixin, View):
             if comentarios:
                 prestamo.agregar_comentario(f'(Devolución) {comentarios}', request.user)
 
-        messages.success(request, f'Se registró la devolución de {len(detalles)} dispositivo(s).')
+        aviso = f'Se registró la devolución de {len(detalles)} dispositivo(s).'
+        if confirmar_devolucion(prestamo, detalles):
+            aviso += f' Se envió la confirmación a {prestamo.usuario_solicita.email}.'
+        else:
+            aviso += ' No se pudo enviar el correo de confirmación.'
+        messages.success(request, aviso)
         return redirect('prestamos')
 
 
@@ -218,7 +224,15 @@ class RegistrarSancionView(StaffRequiredMixin, TemplateView):
             tipo_sancion=tipo,
             observaciones=observaciones,
         )
-        messages.success(request, f'Sanción #{sancion.pk} registrada.')
+        sancion = Sancion.objects.select_related(
+            'usuario', 'registrado_por', 'prestamo'
+        ).get(pk=sancion.pk)
+        aviso = f'Sanción #{sancion.pk} registrada.'
+        if confirmar_sancion(sancion):
+            aviso += f' Se envió la confirmación a {sancion.usuario.email}.'
+        else:
+            aviso += ' No se pudo enviar el correo de confirmación.'
+        messages.success(request, aviso)
         return redirect('sanciones')
 
 

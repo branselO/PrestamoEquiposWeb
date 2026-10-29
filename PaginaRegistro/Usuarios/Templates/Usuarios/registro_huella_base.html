@@ -9,82 +9,202 @@
 </head>
 <body class="flex min-h-screen items-center justify-center bg-paper px-4 py-10 font-sans text-ink antialiased dark:bg-unam-900 dark:text-slate-100">
     {% include 'Usuarios/_theme_toggle.html' with theme_toggle_class='fixed left-4 top-4 z-40' %}
-    <div class="auth-card relative max-w-md">
+    <div class="auth-card relative max-w-lg">
         <a href="{% block back_url %}{% url 'register_Staff' %}{% endblock %}" class="absolute right-5 top-5 text-sm font-semibold text-unam-600 transition-all duration-300 hover:text-gold-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-unam-600/15">← Regresar</a>
         <div class="mb-6 flex justify-center pt-4">
             <span class="brand-mark">PE</span>
         </div>
-        <header class="mb-6 text-center">
+        <header class="mb-5 text-center">
             <h2 class="text-2xl font-bold tracking-tight">Registro de huella</h2>
-            <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">Último paso: conecta el sensor y pulsa el botón cuando esté listo.</p>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">Son cuatro fotos del centro del mismo dedo. Después de cada una verás la imagen y pulsas Continuar.</p>
         </header>
+
+        <ol id="pasos" class="mb-4 grid grid-cols-4 gap-2" aria-label="Tomas de la huella">
+            <li data-paso="1" class="rounded-xl border border-unam-600 bg-unam-50 px-2 py-2 text-center text-xs font-semibold text-unam-700 dark:border-gold-400 dark:bg-unam-900 dark:text-gold-200">Toma 1</li>
+            <li data-paso="2" class="rounded-xl border border-slate-200 px-2 py-2 text-center text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">Toma 2</li>
+            <li data-paso="3" class="rounded-xl border border-slate-200 px-2 py-2 text-center text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">Toma 3</li>
+            <li data-paso="4" class="rounded-xl border border-slate-200 px-2 py-2 text-center text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">Toma 4</li>
+        </ol>
+
+        <figure class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950">
+            <img id="captura" alt="Foto de la toma actual" class="mx-auto hidden h-64 w-auto bg-white object-contain">
+            <figcaption id="captura-vacia" class="px-6 py-12 text-center text-sm text-slate-500 dark:text-slate-400">La foto de cada toma aparece aquí.</figcaption>
+        </figure>
 
         {% csrf_token %}
 
-        <button id="btn-scan" type="button" class="btn btn-primary btn-block" onclick="iniciarEscaneo()">
-            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                <path d="M12 5v14M5 12h14"></path>
-            </svg>
-            <span id="btn-text">Comenzar escaneo</span>
+        <button id="btn-scan" type="button" class="btn btn-primary btn-block mt-4" onclick="iniciarEscaneo()">
+            <span id="btn-text">Capturar toma 1</span>
         </button>
+        <button id="btn-reiniciar" type="button" class="mt-3 hidden w-full text-sm font-semibold text-slate-500 transition-colors hover:text-unam-600 dark:text-slate-400 dark:hover:text-gold-300" onclick="reiniciarRegistro()">Empezar de nuevo</button>
 
-        <div id="status-message" class="status-box info hidden"></div>
+        <div id="status-message" class="status-box info">Apoya el centro del dedo cuando lo pida la pantalla. La foto sale en cuanto queda quieto.</div>
     </div>
 
     <script>
+        const TOTAL_TOMAS = 4;
+        let tomasListas = 0;
+        let capturando = false;
         let intervaloEstado = null;
 
+        function pintarPasos(completadas) {
+            document.querySelectorAll('[data-paso]').forEach((item) => {
+                const paso = Number(item.dataset.paso);
+                const base = 'rounded-xl border px-2 py-2 text-center text-xs font-semibold ';
+                if (paso <= completadas) {
+                    item.className = base + 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200';
+                } else if (paso === completadas + 1) {
+                    item.className = base + 'border-unam-600 bg-unam-50 text-unam-700 dark:border-gold-400 dark:bg-unam-900 dark:text-gold-200';
+                } else {
+                    item.className = base + 'border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400';
+                }
+            });
+        }
+
+        function mostrarFoto(imagen, toma) {
+            const foto = document.getElementById('captura');
+            const vacio = document.getElementById('captura-vacia');
+            if (!imagen) {
+                return;
+            }
+            foto.src = imagen;
+            foto.alt = toma ? 'Foto de la toma ' + toma : 'Foto de la toma actual';
+            foto.classList.remove('hidden');
+            vacio.classList.add('hidden');
+        }
+
+        function textoBoton() {
+            if (tomasListas <= 0) {
+                return 'Capturar toma 1';
+            }
+            if (tomasListas < TOTAL_TOMAS) {
+                return 'Continuar';
+            }
+            return 'Huella guardada';
+        }
+
+        function leerEstado() {
+            const statusBox = document.getElementById('status-message');
+            fetch("{% url 'estado_sensor' %}")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.mensaje && capturando) {
+                        statusBox.className = 'status-box info';
+                        statusBox.innerText = data.mensaje;
+                    }
+                })
+                .catch(() => {});
+        }
+
         function iniciarEscaneo() {
+            if (capturando || tomasListas >= TOTAL_TOMAS) {
+                return;
+            }
             const btn = document.getElementById('btn-scan');
             const btnText = document.getElementById('btn-text');
             const statusBox = document.getElementById('status-message');
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const siguiente = tomasListas + 1;
 
+            capturando = true;
             btn.disabled = true;
-            btnText.innerText = "Escaneando...";
-            statusBox.className = "status-box info";
-            statusBox.innerText = "Conectando con el hardware...";
+            btnText.innerText = 'Capturando toma ' + siguiente + '...';
+            statusBox.className = 'status-box info';
+            statusBox.innerText = 'Buscando el lector. En cuanto lo pida, apoya el centro del dedo y no lo muevas.';
+            document.getElementById('btn-reiniciar').disabled = true;
 
-            intervaloEstado = setInterval(() => {
-                fetch("{% url 'estado_sensor' %}")
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.mensaje) {
-                            statusBox.innerText = data.mensaje;
-                        }
-                    })
-                    .catch(error => console.error("Error al leer el estado:", error));
-            }, 500);
+            intervaloEstado = setInterval(leerEstado, 500);
 
             fetch("{% url 'registrar_huella' %}", {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrfToken,
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({ accion: 'capturar' })
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(response => response.json().then(data => ({ ok: response.ok, data })))
+            .then(({ data }) => {
                 clearInterval(intervaloEstado);
-                if (data.status === 'success') {
-                    statusBox.className = "status-box success";
+                capturando = false;
+                document.getElementById('btn-reiniciar').disabled = false;
+                mostrarFoto(data.imagen, data.toma);
+                if (data.reiniciar) {
+                    tomasListas = 0;
+                    pintarPasos(0);
+                    document.getElementById('btn-reiniciar').classList.add('hidden');
+                } else if (typeof data.toma === 'number') {
+                    tomasListas = data.toma;
+                    pintarPasos(tomasListas);
+                }
+                if (data.status === 'success' || data.completo) {
+                    statusBox.className = 'status-box success';
                     statusBox.innerText = data.message;
+                    btnText.innerText = 'Huella guardada';
+                    document.getElementById('btn-reiniciar').classList.add('hidden');
                     setTimeout(() => {
                         window.location.href = "{% block login_url %}{% endblock %}";
-                    }, 2000);
-                } else {
-                    statusBox.className = "status-box error";
-                    statusBox.innerText = data.message;
+                    }, 1800);
+                    return;
+                }
+                if (data.status === 'captura') {
+                    statusBox.className = 'status-box info';
+                    statusBox.innerText = 'Toma ' + data.toma + ' de ' + data.total + ' lista. Revisa la foto y pulsa Continuar.';
                     btn.disabled = false;
-                    btnText.innerText = "Reintentar escaneo";
+                    btnText.innerText = 'Continuar';
+                    document.getElementById('btn-reiniciar').classList.remove('hidden');
+                    return;
+                }
+                statusBox.className = 'status-box error';
+                statusBox.innerText = data.message || 'No se pudo leer esa toma.';
+                btn.disabled = false;
+                btnText.innerText = tomasListas > 0 ? 'Reintentar esta toma' : 'Capturar toma 1';
+                if (tomasListas > 0) {
+                    document.getElementById('btn-reiniciar').classList.remove('hidden');
                 }
             })
             .catch(() => {
                 clearInterval(intervaloEstado);
-                statusBox.className = "status-box error";
-                statusBox.innerText = "Error crítico de comunicación con el hardware.";
+                capturando = false;
+                document.getElementById('btn-reiniciar').disabled = false;
+                statusBox.className = 'status-box error';
+                statusBox.innerText = 'No hubo respuesta del lector. Revisa que el USB esté conectado.';
                 btn.disabled = false;
-                btnText.innerText = "Reintentar escaneo";
+                btnText.innerText = textoBoton();
+            });
+        }
+
+        function reiniciarRegistro() {
+            if (capturando) {
+                return;
+            }
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const statusBox = document.getElementById('status-message');
+            fetch("{% url 'registrar_huella' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ accion: 'reiniciar' })
+            })
+            .then(response => response.json())
+            .then((data) => {
+                tomasListas = 0;
+                pintarPasos(0);
+                const foto = document.getElementById('captura');
+                foto.removeAttribute('src');
+                foto.classList.add('hidden');
+                document.getElementById('captura-vacia').classList.remove('hidden');
+                document.getElementById('btn-reiniciar').classList.add('hidden');
+                document.getElementById('btn-scan').disabled = false;
+                document.getElementById('btn-text').innerText = 'Capturar toma 1';
+                statusBox.className = 'status-box info';
+                statusBox.innerText = data.message || 'Empezamos de nuevo.';
+            })
+            .catch(() => {
+                statusBox.className = 'status-box error';
+                statusBox.innerText = 'No se pudo reiniciar el registro.';
             });
         }
     </script>

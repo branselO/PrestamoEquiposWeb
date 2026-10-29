@@ -6,12 +6,15 @@ Paso 2: panel de préstamos pendientes con acciones de devolución por préstamo
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import TemplateView, View
 
+from .correos import confirmar_devolucion
 from .models import Prestamo
-from .registro_views import autenticar_usuario
+from .registro_views import autenticar_usuario, quiere_json, _nombre_visible
 from .views import StaffRequiredMixin
 
 SESSION_KEY = 'devolucion_usuario_id'
@@ -29,9 +32,17 @@ class DevolucionLoginView(StaffRequiredMixin, TemplateView):
             request.POST.get('contrasena'),
         )
         if error:
+            if quiere_json(request):
+                return JsonResponse({'status': 'error', 'message': error}, status=400)
             context = self.get_context_data(registro_error=error, correo=correo, metodo=metodo)
             return self.render_to_response(context)
         request.session[SESSION_KEY] = usuario.pk
+        if quiere_json(request):
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Huella reconocida: {_nombre_visible(usuario)}. Mostrando sus préstamos.',
+                'redirect_url': reverse('devolucion_pendientes'),
+            })
         return redirect('devolucion_pendientes')
 
 
@@ -77,15 +88,13 @@ class DevolucionBaseView(StaffRequiredMixin, View):
         if origen == 'pendientes':
             usuario_id = request.session.get(SESSION_KEY)
             if not usuario_id:
-                messages.error(request, 'Primero autentica al usuario.')
-                return redirect('devolucion_login')
+                return self._avisar(request, destino, 'Primero autentica al usuario.', error=True, login=True)
             prestamo = get_object_or_404(Prestamo, pk=pk, usuario_solicita_id=usuario_id)
         else:
             prestamo = get_object_or_404(Prestamo, pk=pk)
         datos, error = self.identificar_quien_devuelve(request)
         if error:
-            messages.error(request, error)
-            return redirect(destino)
+            return self._avisar(request, destino, error, error=True)
 
         seleccionados = [d for d in request.POST.getlist('detalles') if d.isdigit()]
         comentarios = request.POST.get('comentarios', '').strip()
@@ -96,8 +105,12 @@ class DevolucionBaseView(StaffRequiredMixin, View):
                 )
             )
             if not detalles:
-                messages.error(request, 'Selecciona al menos un dispositivo pendiente de devolución.')
-                return redirect(destino)
+                return self._avisar(
+                    request,
+                    destino,
+                    'Selecciona al menos un dispositivo pendiente de devolución.',
+                    error=True,
+                )
             ahora = timezone.now()
             for detalle in detalles:
                 detalle.fecha_devuelto = ahora
@@ -115,11 +128,28 @@ class DevolucionBaseView(StaffRequiredMixin, View):
                 prestamo = Prestamo.objects.select_for_update().get(pk=prestamo.pk)
                 prestamo.agregar_comentario(f'(Devolución) {comentarios}', request.user)
 
-        messages.success(
-            request,
-            f'Se registró la devolución de {len(detalles)} dispositivo(s) del préstamo #{prestamo.pk}.',
-        )
-        return redirect(destino)
+        aviso = f'Se registró la devolución de {len(detalles)} dispositivo(s) del préstamo #{prestamo.pk}.'
+        if confirmar_devolucion(prestamo, detalles):
+            aviso += f' Se envió la confirmación a {prestamo.usuario_solicita.email}.'
+        else:
+            aviso += ' No se pudo enviar el correo de confirmación.'
+        return self._avisar(request, destino, aviso)
+
+    def _avisar(self, request, destino, mensaje, *, error=False, login=False):
+        if quiere_json(request) and request.POST.get('metodo') == 'huella':
+            return JsonResponse(
+                {
+                    'status': 'error' if error else 'success',
+                    'message': mensaje,
+                    'redirect_url': reverse('devolucion_login' if login else destino),
+                },
+                status=400 if error else 200,
+            )
+        if error:
+            messages.error(request, mensaje)
+        else:
+            messages.success(request, mensaje)
+        return redirect('devolucion_login' if login else destino)
 
     def identificar_quien_devuelve(self, request):
         raise NotImplementedError

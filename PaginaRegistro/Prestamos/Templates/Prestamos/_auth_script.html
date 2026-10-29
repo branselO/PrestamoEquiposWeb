@@ -16,5 +16,85 @@
         }
         form.addEventListener('change', actualizar);
         actualizar();
+
+        form.addEventListener('submit', function (event) {
+            const seleccionado = form.querySelector('input[name="metodo"]:checked');
+            if (!seleccionado || seleccionado.value !== 'huella') {
+                return;
+            }
+            event.preventDefault();
+            const estado = form.querySelector('[data-auth-estado]');
+            const boton = form.querySelector('button[type="submit"]');
+            const textoOriginal = boton ? boton.textContent : '';
+            if (boton) {
+                boton.disabled = true;
+                boton.textContent = 'Leyendo huella...';
+            }
+            if (estado) {
+                estado.className = 'status-box info';
+                estado.textContent = 'Buscando el lector. En cuanto lo pida, apoya el centro del dedo y no lo muevas.';
+            }
+            let activo = true;
+            const timer = setInterval(function () {
+                fetch("{% url 'estado_sensor' %}")
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        if (activo && estado && data.mensaje) {
+                            estado.className = 'status-box info';
+                            estado.textContent = data.mensaje;
+                        }
+                    })
+                    .catch(function () {});
+            }, 400);
+            const csrf = form.querySelector('[name=csrfmiddlewaretoken]');
+            fetch(form.action || window.location.href, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'fetch',
+                    'X-CSRFToken': csrf ? csrf.value : ''
+                },
+                body: new FormData(form)
+            })
+            .then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                });
+            })
+            .then(function (resultado) {
+                activo = false;
+                clearInterval(timer);
+                const data = resultado.data || {};
+                if (resultado.ok && data.status === 'success') {
+                    if (estado) {
+                        estado.className = 'status-box success';
+                        estado.textContent = data.message || 'Huella reconocida.';
+                    }
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    }
+                    return;
+                }
+                if (estado) {
+                    estado.className = 'status-box error';
+                    estado.textContent = data.message || 'No se pudo leer la huella. Apoya el centro del dedo e inténtalo otra vez.';
+                }
+                if (boton) {
+                    boton.disabled = false;
+                    boton.textContent = textoOriginal;
+                }
+            })
+            .catch(function () {
+                activo = false;
+                clearInterval(timer);
+                if (estado) {
+                    estado.className = 'status-box error';
+                    estado.textContent = 'No hubo respuesta del lector. Revisa el USB y vuelve a apoyar el dedo.';
+                }
+                if (boton) {
+                    boton.disabled = false;
+                    boton.textContent = textoOriginal;
+                }
+            });
+        });
     });
 </script>
