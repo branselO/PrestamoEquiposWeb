@@ -194,6 +194,43 @@ class UserRegistrationFormTests(TestCase):
         self.assertEqual(reinicio.json()['toma'], 0)
         self.assertEqual(self.client.session['huella_tomas'], [])
 
+    def test_capture_returns_as_soon_as_the_finger_is_still(self):
+        import tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+
+        import numpy as np
+
+        from Usuarios.hardware import hardware as hw
+
+        pixeles = bytes([120]) * (256 * 288)
+        minucia = np.zeros((12, 4), dtype=np.float32)
+        pausas = []
+
+        def anotar_pausa(segundos):
+            pausas.append(segundos)
+
+        with (
+            tempfile.TemporaryDirectory() as carpeta,
+            patch.object(hw, '_leer_foto', return_value=(pixeles, 0)),
+            patch.object(hw, 'analizar', return_value=SimpleNamespace(motivo='dedo')),
+            patch.object(hw, '_minucias_de_foto', return_value=minucia),
+            patch.object(hw.time, 'sleep', side_effect=anotar_pausa),
+        ):
+            foto, puntos = hw._capturar_toma(
+                Mock(),
+                1,
+                None,
+                hw.ESPERA_QUIETO,
+                Path(carpeta),
+                5,
+            )
+
+        self.assertEqual(foto, pixeles)
+        self.assertEqual(len(puntos), 12)
+        self.assertLess(sum(pausas), 1.0)
+        self.assertNotIn(3.0, pausas)
+
     def test_sensor_status_follows_live_updates(self):
         from Usuarios.hardware.hardware import _estado
 
@@ -333,6 +370,7 @@ class LoginFlowTests(TestCase):
 
         response = self.client.get(reverse('verificar_huella'))
         self.assertContains(response, 'Usar contraseña en su lugar')
+        self.assertContains(response, 'apoya el centro del dedo')
 
     def test_password_alternative_authenticates_without_using_fingerprint_sensor(self):
         self.client.get(reverse('login'))

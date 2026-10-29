@@ -261,9 +261,45 @@ class RegistrarPrestamoTests(TestCase):
 
         response = self.client.post(self.url, {'metodo': 'huella'})
 
-        self.assertContains(response, 'No se encontró una huella coincidente')
+        self.assertContains(response, 'No coincide con ninguna huella registrada')
         self.assertNotIn('registro_prestamo', self.client.session)
         uart.close.assert_called_once()
+
+    @patch('Prestamos.registro_views.IndiceBiometricoRAM.identificar_1_a_N')
+    @patch(
+        'Prestamos.registro_views.capturar_minucias_en_vivo',
+        return_value='minucias-capturadas',
+    )
+    @patch('Prestamos.registro_views.get_sensor')
+    def test_fingerprint_search_reports_progress_in_json(
+        self,
+        get_sensor,
+        capture_minutiae,
+        identify_fingerprint,
+    ):
+        uart = Mock(is_open=True)
+        get_sensor.return_value = (Mock(), uart)
+        identify_fingerprint.return_value = (self.solicitante.pk, 0.8, 1.2)
+
+        pagina = self.client.get(self.url)
+        self.assertContains(pagina, 'apoya el centro del dedo')
+        self.assertContains(pagina, 'data-auth-estado')
+
+        response = self.client.post(
+            self.url,
+            {'metodo': 'huella'},
+            HTTP_X_REQUESTED_WITH='fetch',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cuerpo = response.json()
+        self.assertEqual(cuerpo['status'], 'success')
+        self.assertIn('Alumno Prueba', cuerpo['message'])
+        self.assertEqual(cuerpo['redirect_url'], reverse('registrar_prestamo_paso2'))
+        self.assertEqual(
+            self.client.session['registro_prestamo']['usuario_id'],
+            self.solicitante.pk,
+        )
 
     def test_device_that_becomes_unavailable_cannot_be_loaned(self):
         self.iniciar_registro()

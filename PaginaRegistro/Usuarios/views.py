@@ -349,29 +349,37 @@ def api_login_huella(request):
 
         if not user.huella_template:
             return JsonResponse(
-                {'status': 'error', 'message': 'El usuario no tiene una huella registrada.'},
+                {'status': 'error', 'message': 'Esta cuenta no tiene huella. Entra con la contraseña o registra una.'},
                 status=401,
             )
 
         sensor = uart = None
         try:
+            publicar_estado(f'Buscando el lector para confirmar a {user.nombre}.')
             sensor, uart = get_sensor()
+            publicar_estado(f'{user.nombre}, apoya el centro de tu dedo y no lo muevas.')
             minucias = capturar_minucias_en_vivo(sensor)
+            publicar_estado(f'Comparando con la huella registrada de {user.nombre}...')
             minucias_registradas = deserializar_template(bytes(user.huella_template))
             match = comparar_minucias_fast(minucias, minucias_registradas) >= 0.30
             
             if match:
                 login(request, user) # Autenticamos en Django
                 request.session.pop('pre_login_user_id', None)
+                publicar_estado(f'Identidad confirmada: {user.nombre}.')
                 return JsonResponse({
                     'status': 'success', 
-                    'message': '¡Identidad confirmada!',
+                    'message': f'Identidad confirmada, {user.nombre}. Entrando...',
                     'redirect_url': reverse('inicio')
                 })
-            else:
-                return JsonResponse({'status': 'error', 'message': 'La huella no coincide.'}, status=401)
+            publicar_estado('La huella no coincide. Limpia el dedo y apóyalo otra vez en el centro.')
+            return JsonResponse({
+                'status': 'error',
+                'message': 'La huella no coincide. Limpia el dedo y apóyalo otra vez en el centro.',
+            }, status=401)
                 
         except (OSError, RuntimeError) as e:
+            publicar_estado('No se pudo leer el lector.')
             return JsonResponse(
                 {'status': 'error', 'message': f'No se pudo verificar la huella: {e}'},
                 status=500,

@@ -13,8 +13,8 @@ contesta bien aunque el cristal esté vacío. La foto se baja con el lector de
 `verificar_as608.py`. Este clon a veces responde GenImg 0x00 sin dedo; una foto
 así es la rejilla del prisma y se descarta.
 
-Registrar pide cuatro veces el centro del mismo dedo. Hay 3 segundos con el dedo
-quieto antes de cada foto que se guarda. Cada toma tiene que parecerse a la
+Registrar pide cuatro veces el centro del mismo dedo. La foto se toma en cuanto
+dos lecturas seguidas se parecen; ya no hay una pausa fija de 3 segundos. Cada toma tiene que parecerse a la
 primera (0.35) y la plantilla se queda con las minucias que se repiten,
 promediadas. Identificar es una sola foto. La comparación también prueba un
 corrimiento de hasta 24 píxeles.
@@ -86,7 +86,8 @@ except ImportError:
 BAUDRATE = 67200
 _baud_detectado: int | None = None
 TOMA_TOTAL = 4
-ESPERA_QUIETO = 3.0
+ESPERA_QUIETO = 1.0
+QUIETO_DIFERENCIA = 12.0
 ESPERA_DEDO = 60.0
 ESPERA_LEVANTAR = 20.0
 INTENTOS_POR_TOMA = 3
@@ -287,6 +288,41 @@ def _esperar_levantar(sensor: AS608, anterior: bytes, limite: float) -> None:
     raise RuntimeError("Sigo viendo el dedo. Levántalo por completo antes de la siguiente toma.")
 
 
+def _confirmar_quieto(sensor: AS608, apoyo: bytes, espera: float) -> tuple[bytes | None, int | None]:
+    """Segunda foto apenas el dedo deja de moverse. `espera` es el máximo, no una pausa fija."""
+    if espera <= 0:
+        return apoyo, 0
+    _estado("Dedo detectado. Manténlo quieto.")
+    pausa = min(0.2, espera)
+    time.sleep(pausa)
+    fin = time.monotonic() + max(0.0, espera - pausa)
+    anterior = apoyo
+    while True:
+        pixeles, codigo = _leer_foto(sensor)
+        if pixeles is None:
+            if time.monotonic() >= fin:
+                return None, codigo
+            _estado("Se levantó el dedo. Apóyalo otra vez en el centro.")
+            time.sleep(0.12)
+            continue
+        if analizar(pixeles, ANCHO_IMAGEN, ALTO_IMAGEN).motivo == "rejilla":
+            if time.monotonic() >= fin:
+                return pixeles, codigo
+            _estado("Apoya el centro del dedo, con un poco más de presión.")
+            anterior = None
+            time.sleep(0.12)
+            continue
+        if anterior is not None and _diferencia(pixeles, anterior) <= QUIETO_DIFERENCIA:
+            _estado("Dedo quieto. Guardando la foto...")
+            return pixeles, codigo
+        if time.monotonic() >= fin:
+            _estado("Guardando la foto...")
+            return pixeles, codigo
+        anterior = pixeles
+        _estado("Dedo detectado. Manténlo quieto.")
+        time.sleep(0.1)
+
+
 def _capturar_toma(
     sensor: AS608,
     numero: int,
@@ -299,12 +335,11 @@ def _capturar_toma(
 ) -> tuple[bytes, np.ndarray]:
     aviso = aviso or AVISOS[numero - 1].format(n=numero, total=TOMA_TOTAL)
     for _intento in range(INTENTOS_POR_TOMA):
-        if _esperar_apoyo(sensor, aviso, limite_dedo) is None:
+        apoyo = _esperar_apoyo(sensor, aviso, limite_dedo)
+        if apoyo is None:
             _estado("No llegó el dedo.")
             raise RuntimeError("No llegó el dedo a tiempo. Apoya el centro del lector.")
-        _estado("Esperando 3 segundos. No muevas el dedo.")
-        time.sleep(espera)
-        pixeles, codigo = _leer_foto(sensor)
+        pixeles, codigo = _confirmar_quieto(sensor, apoyo, espera)
         if pixeles is None:
             if codigo == 0x02:
                 _estado("GenImg 0x02: no hay dedo en el sensor.")
@@ -328,15 +363,16 @@ def _capturar_toma(
                 )
                 continue
             _estado(f"Toma {numero} lista, {len(minucias)} minucias. Parecido con la primera: {parecido:.3f}.")
-        else:
+        elif numerar:
             _estado(f"Toma {numero} lista, {len(minucias)} minucias.")
+        else:
+            _estado("Foto lista. Buscando a quién pertenece...")
         if numerar:
-            ruta = _guardar_toma(carpeta, pixeles, numero)
+            _guardar_toma(carpeta, pixeles, numero)
         else:
             carpeta.mkdir(parents=True, exist_ok=True)
             ruta = carpeta / "ultimo.png"
             escribir_png(ruta, pixeles, ANCHO_IMAGEN, ALTO_IMAGEN)
-        _estado(f"{ESTADO_SENSOR} Foto en {ruta}.")
         return pixeles, minucias
     _estado(f"No pude aceptar la toma {numero}.")
     raise RuntimeError(
@@ -443,7 +479,7 @@ def capturar_minucias_en_vivo(sensor, espera: float = ESPERA_QUIETO, carpeta: Pa
         espera,
         destino,
         ESPERA_DEDO,
-        aviso="Coloca el centro del dedo para identificarte.",
+        aviso="Apoya el centro del dedo en el lector y no lo muevas.",
         numerar=False,
     )
     _estado(f"Huella lista para identificar. Foto en {destino / 'ultimo.png'}.")

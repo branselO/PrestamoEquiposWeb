@@ -19,6 +19,12 @@
             <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">Hola <strong class="text-slate-900 dark:text-slate-100">{{ usuario.nombre }}</strong>, confirma tu identidad para entrar.</p>
         </header>
 
+        <ol class="mb-4 space-y-2 text-left text-sm text-slate-600 dark:text-slate-300">
+            <li>1. Pulsa <strong class="text-ink dark:text-slate-100">Escanear huella</strong>.</li>
+            <li>2. Cuando la pantalla lo pida, apoya el centro del dedo y no lo muevas.</li>
+            <li>3. Espera el resultado. Si no coincide, limpia el dedo e inténtalo otra vez.</li>
+        </ol>
+
         {% csrf_token %}
 
         <button id="btn-verify" type="button" class="btn btn-primary btn-block" onclick="verificarHuella()">
@@ -43,7 +49,7 @@
             <button class="btn btn-secondary btn-block" type="button" onclick="mostrarHuella()">Usar huella</button>
         </form>
 
-        <div id="status-message" class="status-box info hidden"></div>
+        <div id="status-message" class="status-box info" role="status">Listo. Al pulsar el botón, apoya el dedo en cuanto lo pida este recuadro.</div>
     </div>
 
     <script>
@@ -100,15 +106,34 @@
             });
         });
 
+        let leyendoHuella = false;
+
+        function leerEstadoHuella() {
+            if (!leyendoHuella) {
+                return;
+            }
+            fetch("{% url 'estado_sensor' %}")
+                .then(response => response.json())
+                .then(data => {
+                    if (leyendoHuella && data.mensaje) {
+                        statusBox.className = 'status-box info';
+                        statusBox.innerText = data.mensaje;
+                    }
+                })
+                .catch(() => {});
+        }
+
         function verificarHuella() {
             const btn = document.getElementById('btn-verify');
             const btnText = document.getElementById('btn-text');
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
             btn.disabled = true;
-            btnText.innerText = "Comparando...";
+            btnText.innerText = "Leyendo...";
             statusBox.className = "status-box info";
-            statusBox.innerText = "Coloque su dedo en el sensor...";
+            statusBox.innerText = "Buscando el lector. En cuanto lo pida, apoya el centro del dedo.";
+            leyendoHuella = true;
+            const intervalo = setInterval(leerEstadoHuella, 400);
 
             fetch("{% url 'verificar_huella' %}", {
                 method: 'POST',
@@ -119,6 +144,8 @@
             })
             .then(response => response.json())
             .then(data => {
+                leyendoHuella = false;
+                clearInterval(intervalo);
                 if (data.status === 'success') {
                     statusBox.className = "status-box success";
                     statusBox.innerText = data.message;
@@ -133,8 +160,10 @@
                 }
             })
             .catch(() => {
+                leyendoHuella = false;
+                clearInterval(intervalo);
                 statusBox.className = "status-box error";
-                statusBox.innerText = "Error crítico al contactar con el hardware.";
+                statusBox.innerText = "No hubo respuesta del lector. Revisa el USB e inténtalo otra vez.";
                 btn.disabled = false;
                 btnText.innerText = "Reintentar";
             });
