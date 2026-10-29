@@ -4,7 +4,7 @@ Paso 1: autenticar al solicitante (contraseña o huella).
 Paso 2: seleccionar dispositivos.
 Paso 3: fecha de devolución y confirmación (creación transaccional).
 """
-from datetime import datetime, time
+from datetime import datetime, timedelta
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -13,7 +13,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_datetime
 from django.views.generic import TemplateView
 
 from Inventario.models import Categoria, Dispositivo
@@ -24,6 +24,7 @@ from Usuarios.hardware import (
     get_sensor,
     publicar_estado,
 )
+from .correos import confirmar_prestamo
 from .models import DetallePrestamo, Prestamo
 from .views import StaffRequiredMixin
 
@@ -96,6 +97,28 @@ def autenticar_usuario(correo, metodo, contrasena):
         return None, 'No se encontró un usuario activo con esa huella.'
     publicar_estado(f'Huella reconocida: {_nombre_visible(usuario)}.')
     return usuario, None
+
+
+def devolucion_dentro_de_dos_horas():
+    """Hora local, sin segundos, dos horas después de este momento."""
+    ahora = timezone.localtime().replace(second=0, microsecond=0)
+    return ahora + timedelta(hours=2)
+
+
+def leer_fecha_devolucion(texto):
+    """Lee el datetime del formulario. Si viene vacío, usa dentro de dos horas."""
+    texto = (texto or '').strip()
+    if not texto:
+        return devolucion_dentro_de_dos_horas()
+    parsed = parse_datetime(texto)
+    if parsed is None:
+        try:
+            parsed = datetime.strptime(texto, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            return None
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+    return parsed
 
 
 def _solicitante_valido(usuario_id):
@@ -244,24 +267,25 @@ class RegistrarPrestamoPaso3View(WizardStepMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        hoy = timezone.localdate()
+        sugerida = devolucion_dentro_de_dos_horas()
         context.update({
             'solicitante': self.solicitante,
             'dispositivos': Dispositivo.objects.filter(
                 pk__in=self.ids
             ).select_related('categoria').order_by('codigo_inventario'),
-            'fecha_minima': hoy.isoformat(),
+            'fecha_sugerida': sugerida.strftime('%Y-%m-%dT%H:%M'),
+            'fecha_minima': timezone.localtime().replace(
+                second=0, microsecond=0
+            ).strftime('%Y-%m-%dT%H:%M'),
         })
         return context
 
     def post(self, request):
-        fecha = parse_date(request.POST.get('fecha_devolucion', '').strip())
-        if fecha is None:
-            return self.error('Ingresa una fecha de devolución válida.')
-        if fecha < timezone.localdate():
-            return self.error('La fecha de devolución no puede ser anterior a hoy.')
-        # La fecha se interpreta como fin del día indicado.
-        fecha_devolucion = timezone.make_aware(datetime.combine(fecha, time(23, 59)))
+        fecha_devolucion = leer_fecha_devolucion(request.POST.get('fecha_devolucion', ''))
+        if fecha_devolucion is None:
+            return self.error('Ingresa una fecha y hora de devolución válidas.')
+        if fecha_devolucion < timezone.now():
+            return self.error('La fecha de devolución no puede ser anterior a este momento.')
 
         User = get_user_model()
         try:
@@ -300,6 +324,19 @@ class RegistrarPrestamoPaso3View(WizardStepMixin, TemplateView):
             messages.error(request, str(error))
             return redirect('registrar_prestamo')
 
+        prestamo = Prestamo.objects.select_related(
+            'usuario_solicita', 'staff_autoriza'
+        ).prefetch_related('detalles__dispositivo').get(pk=prestamo.pk)
+        if confirmar_prestamo(prestamo):
+            messages.success(
+                request,
+                f'Se envió la confirmación a {prestamo.usuario_solicita.email}.',
+            )
+        else:
+            messages.info(
+                request,
+                'El préstamo quedó registrado, pero no se pudo enviar el correo de confirmación.',
+            )
         _reset(request)
         return redirect(reverse('registrar_prestamo_exito', args=[prestamo.pk]))
 

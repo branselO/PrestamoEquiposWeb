@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import TemplateView, View
 
+from .correos import confirmar_devolucion
 from .models import Prestamo
 from .registro_views import autenticar_usuario, quiere_json, _nombre_visible
 from .views import StaffRequiredMixin
@@ -127,11 +128,12 @@ class DevolucionBaseView(StaffRequiredMixin, View):
                 prestamo = Prestamo.objects.select_for_update().get(pk=prestamo.pk)
                 prestamo.agregar_comentario(f'(Devolución) {comentarios}', request.user)
 
-        return self._avisar(
-            request,
-            destino,
-            f'Se registró la devolución de {len(detalles)} dispositivo(s) del préstamo #{prestamo.pk}.',
-        )
+        aviso = f'Se registró la devolución de {len(detalles)} dispositivo(s) del préstamo #{prestamo.pk}.'
+        if confirmar_devolucion(prestamo, detalles):
+            aviso += f' Se envió la confirmación a {prestamo.usuario_solicita.email}.'
+        else:
+            aviso += ' No se pudo enviar el correo de confirmación.'
+        return self._avisar(request, destino, aviso)
 
     def _avisar(self, request, destino, mensaje, *, error=False, login=False):
         if quiere_json(request) and request.POST.get('metodo') == 'huella':

@@ -12,11 +12,14 @@
         </div>
         <div class="space-y-5 p-5 sm:p-6">
             <p class="loan-message success mb-0" role="status">El préstamo quedó registrado y los equipos pasaron a estado prestado.</p>
+            {% for message in messages %}
+                <div class="loan-message {{ message.tags }}" role="status">{{ message }}</div>
+            {% endfor %}
             {% include 'Prestamos/_persona.html' with etiqueta='Solicitante' nombre=prestamo.usuario_solicita.nombre apellidos=prestamo.usuario_solicita.apellidos email=prestamo.usuario_solicita.email %}
             <dl class="grid gap-3 sm:grid-cols-2">
                 <div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800">
                     <dt class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-300">Devolución esperada</dt>
-                    <dd class="mt-1 text-base font-bold text-unam-600 dark:text-blue-300">{{ prestamo.fecha_devolucion_esperada|date:"d/m/Y" }}</dd>
+                    <dd class="mt-1 text-base font-bold text-unam-600 dark:text-blue-300">{{ prestamo.fecha_devolucion_esperada|date:"d/m/Y H:i" }}</dd>
                 </div>
                 <div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800">
                     <dt class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-300">Equipos</dt>
