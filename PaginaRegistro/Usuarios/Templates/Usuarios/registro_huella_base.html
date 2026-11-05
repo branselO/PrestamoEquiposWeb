@@ -41,11 +41,12 @@
         <div id="status-message" class="status-box info">Apoya el centro del dedo cuando lo pida la pantalla. La foto sale en cuanto queda quieto.</div>
     </div>
 
+    {% include 'Usuarios/_agente_huella.html' %}
     <script>
         const TOTAL_TOMAS = 4;
         let tomasListas = 0;
         let capturando = false;
-        let intervaloEstado = null;
+        let primeraToma = '';
 
         function pintarPasos(completadas) {
             document.querySelectorAll('[data-paso]').forEach((item) => {
@@ -83,19 +84,6 @@
             return 'Huella guardada';
         }
 
-        function leerEstado() {
-            const statusBox = document.getElementById('status-message');
-            fetch("{% url 'estado_sensor' %}")
-                .then(response => response.json())
-                .then(data => {
-                    if (data.mensaje && capturando) {
-                        statusBox.className = 'status-box info';
-                        statusBox.innerText = data.mensaje;
-                    }
-                })
-                .catch(() => {});
-        }
-
         function iniciarEscaneo() {
             if (capturando || tomasListas >= TOTAL_TOMAS) {
                 return;
@@ -110,27 +98,44 @@
             btn.disabled = true;
             btnText.innerText = 'Capturando toma ' + siguiente + '...';
             statusBox.className = 'status-box info';
-            statusBox.innerText = 'Buscando el lector. En cuanto lo pida, apoya el centro del dedo y no lo muevas.';
+            statusBox.innerText = 'Buscando el lector de este kiosco. En cuanto lo pida, apoya el centro del dedo y no lo muevas.';
             document.getElementById('btn-reiniciar').disabled = true;
 
-            intervaloEstado = setInterval(leerEstado, 500);
+            const detener = window.vigilarLector(function (mensaje) {
+                if (capturando) {
+                    statusBox.className = 'status-box info';
+                    statusBox.innerText = mensaje;
+                }
+            });
 
-            fetch("{% url 'registrar_huella' %}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ accion: 'capturar' })
+            window.tomarEnKiosco(siguiente, siguiente > 1 ? primeraToma : '')
+            .then(function (captura) {
+                detener();
+                return fetch("{% url 'registrar_huella' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        accion: 'guardar',
+                        minucias: captura.minucias,
+                        imagen: captura.imagen
+                    })
+                }).then(response => response.json().then(data => {
+                    if (data && data.toma === 1 && data.status === 'captura') {
+                        primeraToma = captura.minucias;
+                    }
+                    return data;
+                }));
             })
-            .then(response => response.json().then(data => ({ ok: response.ok, data })))
-            .then(({ data }) => {
-                clearInterval(intervaloEstado);
+            .then((data) => {
                 capturando = false;
                 document.getElementById('btn-reiniciar').disabled = false;
                 mostrarFoto(data.imagen, data.toma);
                 if (data.reiniciar) {
                     tomasListas = 0;
+                    primeraToma = '';
                     pintarPasos(0);
                     document.getElementById('btn-reiniciar').classList.add('hidden');
                 } else if (typeof data.toma === 'number') {
@@ -163,12 +168,13 @@
                     document.getElementById('btn-reiniciar').classList.remove('hidden');
                 }
             })
-            .catch(() => {
-                clearInterval(intervaloEstado);
+            .catch((error) => {
+                detener();
                 capturando = false;
                 document.getElementById('btn-reiniciar').disabled = false;
                 statusBox.className = 'status-box error';
-                statusBox.innerText = 'No hubo respuesta del lector. Revisa que el USB esté conectado.';
+                statusBox.innerText = (error && error.delAgente && error.message)
+                    || 'No hubo respuesta. Revisa que el agente del lector esté encendido.';
                 btn.disabled = false;
                 btnText.innerText = textoBoton();
             });
@@ -191,6 +197,7 @@
             .then(response => response.json())
             .then((data) => {
                 tomasListas = 0;
+                primeraToma = '';
                 pintarPasos(0);
                 const foto = document.getElementById('captura');
                 foto.removeAttribute('src');

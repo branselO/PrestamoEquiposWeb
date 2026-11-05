@@ -418,6 +418,22 @@ def deserializar_template(template_bytes: bytes) -> np.ndarray:
     return np.array(json.loads(raw.decode("utf-8")), dtype=np.float32)
 
 
+def minucias_desde_texto(texto: str) -> np.ndarray:
+    """Lee las minucias que el agente del kiosco mandó en base64."""
+    texto = (texto or "").strip()
+    if not texto:
+        raise ValueError(
+            "Este kiosco no envió una huella. Enciende el agente del lector en esta computadora."
+        )
+    try:
+        matriz = deserializar_template(base64.b64decode(texto))
+    except Exception as error:
+        raise ValueError("La huella recibida no se pudo leer. Vuelve a apoyar el dedo.") from error
+    if getattr(matriz, "ndim", 0) != 2 or matriz.shape[1] < 4:
+        raise ValueError("La huella recibida no se pudo leer. Vuelve a apoyar el dedo.")
+    return matriz
+
+
 def comparar_minucias_fast(
     m_captura: np.ndarray,
     m_db: np.ndarray,

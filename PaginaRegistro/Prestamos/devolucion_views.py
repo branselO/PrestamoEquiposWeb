@@ -30,6 +30,7 @@ class DevolucionLoginView(StaffRequiredMixin, TemplateView):
             correo,
             metodo,
             request.POST.get('contrasena'),
+            request.POST.get('minucias', ''),
         )
         if error:
             if quiere_json(request):
@@ -161,6 +162,7 @@ class DevolverComoUsuarioView(DevolucionBaseView):
             request.POST.get('correo'),
             request.POST.get('metodo'),
             request.POST.get('contrasena'),
+            request.POST.get('minucias', ''),
         )
         return ({'usuario': usuario}, None) if usuario else (None, error)
 

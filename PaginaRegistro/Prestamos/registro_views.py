@@ -18,12 +18,7 @@ from django.views.generic import TemplateView
 
 from Inventario.models import Categoria, Dispositivo
 from Usuarios.hardware.biometria_cache import IndiceBiometricoRAM
-from Usuarios.hardware import (
-    apagar_led_sensor,
-    capturar_minucias_en_vivo,
-    get_sensor,
-    publicar_estado,
-)
+from Usuarios.hardware import minucias_desde_texto
 from .correos import confirmar_prestamo
 from .models import DetallePrestamo, Prestamo
 from .views import StaffRequiredMixin
@@ -50,8 +45,8 @@ def _nombre_visible(usuario):
     return nombre or usuario.email
 
 
-def autenticar_usuario(correo, metodo, contrasena):
-    """Autentica con correo y contraseña o identifica mediante una captura 1:N."""
+def autenticar_usuario(correo, metodo, contrasena, minucias_b64=''):
+    """Autentica con correo y contraseña, o con las minucias que mandó el kiosco."""
     User = get_user_model()
     if metodo == 'contrasena':
         correo = (correo or '').strip()
@@ -67,35 +62,21 @@ def autenticar_usuario(correo, metodo, contrasena):
     if metodo != 'huella':
         return None, 'Selecciona un método de autenticación.'
 
-    sensor = uart = None
     try:
-        publicar_estado('Buscando el lector USB. En cuanto esté listo, apoya el centro del dedo.')
-        sensor, uart = get_sensor()
-        publicar_estado('Lector listo. Apoya el centro del dedo y no lo muevas.')
-        minucias = capturar_minucias_en_vivo(sensor)
-        publicar_estado('Huella leída. Buscando a la persona entre las registradas...')
-        usuario_id, _, _ = IndiceBiometricoRAM.identificar_1_a_N(
-            minucias,
-            ModeloUsuario=User,
-            umbral=0.30,
-        )
-    except (OSError, RuntimeError) as error:
-        publicar_estado('No se pudo usar el lector. Revisa el USB y vuelve a intentar.')
-        return None, f'No se pudo verificar la huella: {error}'
-    finally:
-        if sensor:
-            apagar_led_sensor(sensor)
-        if uart and uart.is_open:
-            uart.close()
+        minucias = minucias_desde_texto(minucias_b64)
+    except ValueError as error:
+        return None, str(error)
+    usuario_id, _, _ = IndiceBiometricoRAM.identificar_1_a_N(
+        minucias,
+        ModeloUsuario=User,
+        umbral=0.30,
+    )
 
     if usuario_id is None:
-        publicar_estado('No coincide con ninguna huella. Limpia el dedo y apóyalo otra vez en el centro.')
         return None, 'No coincide con ninguna huella registrada. Limpia el dedo, apóyalo en el centro y vuelve a intentar.'
     usuario = User.objects.filter(pk=usuario_id, is_active=True).first()
     if usuario is None:
-        publicar_estado('La huella coincide con una cuenta que ya no está activa.')
         return None, 'No se encontró un usuario activo con esa huella.'
-    publicar_estado(f'Huella reconocida: {_nombre_visible(usuario)}.')
     return usuario, None
 
 
@@ -165,6 +146,7 @@ class RegistrarPrestamoPaso1View(WizardStepMixin, TemplateView):
             correo,
             metodo,
             request.POST.get('contrasena', ''),
+            request.POST.get('minucias', ''),
         )
         if error:
             return self._responder(request, error, correo, metodo)

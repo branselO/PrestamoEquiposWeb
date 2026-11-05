@@ -67,6 +67,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'Usuarios.context_processors.huella_agente',
             ],
         },
     },
@@ -152,6 +153,10 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'true').lower() in {'1', 'true', 'yes'}
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'prestamos@localhost')
+
+# El navegador de cada kiosco lee el sensor en esta dirección, en la misma máquina.
+# El proceso de Django no abre el USB. HUELLA_AGENTE_PUERTO cambia el puerto del agente.
+HUELLA_AGENTE_URL = os.environ.get('HUELLA_AGENTE_URL', 'http://127.0.0.1:8766')
 
 # A dónde ir después de iniciar sesión con éxito
 LOGIN_REDIRECT_URL = 'inicio'

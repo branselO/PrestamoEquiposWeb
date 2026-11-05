@@ -52,6 +52,7 @@
         <div id="status-message" class="status-box info" role="status">Listo. Al pulsar el botón, apoya el dedo en cuanto lo pida este recuadro.</div>
     </div>
 
+    {% include 'Usuarios/_agente_huella.html' %}
     <script>
         const statusBox = document.getElementById('status-message');
 
@@ -66,7 +67,8 @@
             document.getElementById('password-form').classList.add('hidden');
             document.getElementById('btn-verify').classList.remove('hidden');
             document.getElementById('btn-show-password').classList.remove('hidden');
-            statusBox.className = 'status-box info hidden';
+            statusBox.className = 'status-box info';
+            statusBox.innerText = 'Listo. Al pulsar el botón, apoya el dedo en cuanto lo pida este recuadro.';
         }
 
         document.getElementById('password-form').addEventListener('submit', function(event) {
@@ -108,21 +110,6 @@
 
         let leyendoHuella = false;
 
-        function leerEstadoHuella() {
-            if (!leyendoHuella) {
-                return;
-            }
-            fetch("{% url 'estado_sensor' %}")
-                .then(response => response.json())
-                .then(data => {
-                    if (leyendoHuella && data.mensaje) {
-                        statusBox.className = 'status-box info';
-                        statusBox.innerText = data.mensaje;
-                    }
-                })
-                .catch(() => {});
-        }
-
         function verificarHuella() {
             const btn = document.getElementById('btn-verify');
             const btnText = document.getElementById('btn-text');
@@ -131,21 +118,31 @@
             btn.disabled = true;
             btnText.innerText = "Leyendo...";
             statusBox.className = "status-box info";
-            statusBox.innerText = "Buscando el lector. En cuanto lo pida, apoya el centro del dedo.";
+            statusBox.innerText = "Buscando el lector de este kiosco. En cuanto lo pida, apoya el centro del dedo.";
             leyendoHuella = true;
-            const intervalo = setInterval(leerEstadoHuella, 400);
-
-            fetch("{% url 'verificar_huella' %}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/x-www-form-urlencoded'
+            const detener = window.vigilarLector(function (mensaje) {
+                if (leyendoHuella) {
+                    statusBox.className = 'status-box info';
+                    statusBox.innerText = mensaje;
                 }
-            })
-            .then(response => response.json())
-            .then(data => {
+            });
+
+            window.capturarEnKiosco()
+            .then(function (captura) {
                 leyendoHuella = false;
-                clearInterval(intervalo);
+                detener();
+                statusBox.className = 'status-box info';
+                statusBox.innerText = 'Huella leída. Comparando con la cuenta...';
+                return fetch("{% url 'verificar_huella' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({ minucias: captura.minucias })
+                }).then(response => response.json());
+            })
+            .then(data => {
                 if (data.status === 'success') {
                     statusBox.className = "status-box success";
                     statusBox.innerText = data.message;
@@ -159,11 +156,12 @@
                     btnText.innerText = "Reintentar";
                 }
             })
-            .catch(() => {
+            .catch((error) => {
                 leyendoHuella = false;
-                clearInterval(intervalo);
+                detener();
                 statusBox.className = "status-box error";
-                statusBox.innerText = "No hubo respuesta del lector. Revisa el USB e inténtalo otra vez.";
+                statusBox.innerText = (error && error.delAgente && error.message)
+                    || "No hubo respuesta. Revisa la conexión e inténtalo otra vez.";
                 btn.disabled = false;
                 btnText.innerText = "Reintentar";
             });

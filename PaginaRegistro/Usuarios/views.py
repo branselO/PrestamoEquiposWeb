@@ -14,16 +14,11 @@ from .forms import EmailLoginForm, StaffSignUpForm, NormalUserCreationForm
 from .models import CustomUser, EntidadAcademica, Programa
 from .hardware import (
     TOMA_TOTAL,
-    get_sensor,
-    capturar_minucias_en_vivo,
-    capturar_toma_para_pantalla,
     deserializar_template,
     comparar_minucias_fast,
-    apagar_led_sensor,
     estado_sensor,
     fusionar_plantilla,
-    png_data_url,
-    publicar_estado,
+    minucias_desde_texto,
     serializar_template,
 )
 from .hardware.biometria_cache import IndiceBiometricoRAM
@@ -149,6 +144,19 @@ def _tomas_guardadas(request):
     return list(tomas) if isinstance(tomas, list) else []
 
 
+def _png_del_kiosco(texto):
+    prefijo = 'data:image/png;base64,'
+    if not isinstance(texto, str) or not texto.startswith(prefijo):
+        return None
+    try:
+        png = base64.b64decode(texto[len(prefijo):], validate=True)
+    except (ValueError, TypeError):
+        return None
+    if not png.startswith(b'\x89PNG'):
+        return None
+    return texto
+
+
 def _guardar_usuario(temp_data, template_bytes):
     user = CustomUser(
         email=temp_data['email'],
@@ -190,7 +198,6 @@ def api_registrar_huella(request):
         if cuerpo.get('accion') == 'reiniciar':
             request.session[SESION_TOMAS] = []
             request.session.modified = True
-            publicar_estado('Listo para la toma 1.')
             return JsonResponse({
                 'status': 'reiniciado',
                 'message': 'Empezamos de nuevo. Captura la toma 1.',
@@ -199,14 +206,24 @@ def api_registrar_huella(request):
                 'completo': False,
             })
 
+        if cuerpo.get('accion') != 'guardar':
+            return JsonResponse(
+                {
+                    'status': 'error',
+                    'message': 'La captura se hace en el lector de este kiosco.',
+                    'toma': len(_tomas_guardadas(request)),
+                    'total': TOMA_TOTAL,
+                    'completo': False,
+                },
+                status=400,
+            )
+
         tomas = _tomas_guardadas(request)
         if len(tomas) >= TOMA_TOTAL:
             tomas = []
-        numero = len(tomas) + 1
-        primera = None
         if tomas:
             try:
-                primera = deserializar_template(base64.b64decode(tomas[0]))
+                deserializar_template(base64.b64decode(tomas[0]))
             except (ValueError, OSError, json.JSONDecodeError, zlib.error):
                 request.session[SESION_TOMAS] = []
                 request.session.modified = True
@@ -221,39 +238,41 @@ def api_registrar_huella(request):
                     status=400,
                 )
 
-        publicar_estado(f'Toma {numero} de {TOMA_TOTAL}. Buscando el lector USB...')
-        sensor = uart = None
         try:
-            sensor, uart = get_sensor()
-            pixeles, minucias = capturar_toma_para_pantalla(sensor, numero, primera)
-        except (OSError, RuntimeError) as error:
+            minucias = minucias_desde_texto(cuerpo.get('minucias'))
+        except ValueError as error:
             return JsonResponse(
                 {
                     'status': 'error',
                     'message': str(error),
-                    'toma': numero - 1,
+                    'toma': len(tomas),
                     'total': TOMA_TOTAL,
                     'completo': False,
                 },
                 status=400,
             )
-        finally:
-            if sensor:
-                apagar_led_sensor(sensor)
-            if uart and uart.is_open:
-                uart.close()
+        imagen = _png_del_kiosco(cuerpo.get('imagen'))
+        if imagen is None:
+            return JsonResponse(
+                {
+                    'status': 'error',
+                    'message': 'La foto de la toma no llegó. Vuelve a capturar.',
+                    'toma': len(tomas),
+                    'total': TOMA_TOTAL,
+                    'completo': False,
+                },
+                status=400,
+            )
 
+        numero = len(tomas) + 1
         tomas.append(base64.b64encode(serializar_template(minucias)).decode('ascii'))
         request.session[SESION_TOMAS] = tomas
         request.session.modified = True
-        imagen = png_data_url(pixeles)
-        mensaje = estado_sensor()
 
         if numero < TOMA_TOTAL:
-            publicar_estado(f'Toma {numero} lista. Revisa la foto y pulsa Continuar.')
             return JsonResponse({
                 'status': 'captura',
-                'message': mensaje,
+                'message': f'Toma {numero} lista. Revisa la foto y pulsa Continuar.',
                 'imagen': imagen,
                 'toma': numero,
                 'total': TOMA_TOTAL,
@@ -266,7 +285,6 @@ def api_registrar_huella(request):
         if plantilla is None:
             request.session[SESION_TOMAS] = []
             request.session.modified = True
-            publicar_estado('Las cuatro fotos no alcanzaron. Hay que empezar de nuevo.')
             return JsonResponse(
                 {
                     'status': 'error',
@@ -285,7 +303,6 @@ def api_registrar_huella(request):
         del request.session['temp_user_data']
         request.session[SESION_TOMAS] = []
         request.session.modified = True
-        publicar_estado(f'Huella guardada, {len(plantilla)} minucias.')
         return JsonResponse({
             'status': 'success',
             'message': 'Huella y usuario guardados. Ya puedes entrar.',
@@ -353,43 +370,29 @@ def api_login_huella(request):
                 status=401,
             )
 
-        sensor = uart = None
         try:
-            publicar_estado(f'Buscando el lector para confirmar a {user.nombre}.')
-            sensor, uart = get_sensor()
-            publicar_estado(f'{user.nombre}, apoya el centro de tu dedo y no lo muevas.')
-            minucias = capturar_minucias_en_vivo(sensor)
-            publicar_estado(f'Comparando con la huella registrada de {user.nombre}...')
+            minucias = minucias_desde_texto(request.POST.get('minucias', ''))
+        except ValueError as error:
+            return JsonResponse({'status': 'error', 'message': str(error)}, status=400)
+        try:
             minucias_registradas = deserializar_template(bytes(user.huella_template))
-            match = comparar_minucias_fast(minucias, minucias_registradas) >= 0.30
-            
-            if match:
-                login(request, user) # Autenticamos en Django
-                request.session.pop('pre_login_user_id', None)
-                publicar_estado(f'Identidad confirmada: {user.nombre}.')
-                return JsonResponse({
-                    'status': 'success', 
-                    'message': f'Identidad confirmada, {user.nombre}. Entrando...',
-                    'redirect_url': reverse('inicio')
-                })
-            publicar_estado('La huella no coincide. Limpia el dedo y apóyalo otra vez en el centro.')
-            return JsonResponse({
-                'status': 'error',
-                'message': 'La huella no coincide. Limpia el dedo y apóyalo otra vez en el centro.',
-            }, status=401)
-                
-        except (OSError, RuntimeError) as e:
-            publicar_estado('No se pudo leer el lector.')
+        except (ValueError, OSError, json.JSONDecodeError, zlib.error):
             return JsonResponse(
-                {'status': 'error', 'message': f'No se pudo verificar la huella: {e}'},
+                {'status': 'error', 'message': 'La huella guardada de esta cuenta no se pudo leer.'},
                 status=500,
             )
-            
-        finally:
-            if sensor:
-                apagar_led_sensor(sensor)
-            if uart and uart.is_open:
-                uart.close()
+        if comparar_minucias_fast(minucias, minucias_registradas) >= 0.30:
+            login(request, user)
+            request.session.pop('pre_login_user_id', None)
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Identidad confirmada, {user.nombre}. Entrando...',
+                'redirect_url': reverse('inicio'),
+            })
+        return JsonResponse({
+            'status': 'error',
+            'message': 'La huella no coincide. Limpia el dedo y apóyalo otra vez en el centro.',
+        }, status=401)
                 
     return render(request, 'Usuarios/login_huella.html', {'usuario': user})
 
