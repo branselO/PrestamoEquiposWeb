@@ -20,21 +20,38 @@ from pathlib import Path
 
 import numpy as np
 
-from huella_pc import _quitar_bandas, decodificar_imagen, escribir_png
-from verificar_as608 import (
-    ALTO_IMAGEN,
-    ANCHO_IMAGEN,
-    AS608,
-    BAUDS_CONOCIDOS,
-    CAPTURAR_IMAGEN,
-    Paquete,
-    TIEMPO_DESCARGA,
-    SinRespuesta,
-    abrir_puerto,
-    buscar_baud,
-    cargar_serial,
-    hex_bytes,
-)
+try:
+    from .huella_pc import _quitar_bandas, decodificar_imagen, escribir_png
+    from .verificar_as608 import (
+        ALTO_IMAGEN,
+        ANCHO_IMAGEN,
+        AS608,
+        BAUDS_CONOCIDOS,
+        CAPTURAR_IMAGEN,
+        Paquete,
+        TIEMPO_DESCARGA,
+        SinRespuesta,
+        abrir_puerto,
+        buscar_baud,
+        cargar_serial,
+        hex_bytes,
+    )
+except ImportError:
+    from huella_pc import _quitar_bandas, decodificar_imagen, escribir_png
+    from verificar_as608 import (
+        ALTO_IMAGEN,
+        ANCHO_IMAGEN,
+        AS608,
+        BAUDS_CONOCIDOS,
+        CAPTURAR_IMAGEN,
+        Paquete,
+        TIEMPO_DESCARGA,
+        SinRespuesta,
+        abrir_puerto,
+        buscar_baud,
+        cargar_serial,
+        hex_bytes,
+    )
 
 BAUD = 67200
 UMBRAL = 0.35
@@ -405,17 +422,22 @@ def acordar_baud(
     pausa: float = 0.15,
     timeout: float = 1.0,
     timeout_barrido: float = 0.45,
+    avisar=None,
 ) -> tuple[int, Paquete]:
     afirmar_baud(sensor, baud)
+    if avisar:
+        avisar(f"Comprobando el lector a {baud} baudios...")
     for intento in range(3):
-        encontrado = buscar_baud(sensor, [baud], 0, timeout, anunciar=False)
+        encontrado = buscar_baud(sensor, [baud], 0, timeout, anunciar=False, avisar=avisar)
         if encontrado:
             return encontrado
         if intento < 2:
             time.sleep(pausa)
     otros = [otro for otro in BAUDS_CONOCIDOS if otro != baud]
     print(f"Sin respuesta a {baud}. Probando las otras velocidades del AS608.")
-    encontrado = buscar_baud(sensor, otros, 0, timeout_barrido, anunciar=True)
+    if avisar:
+        avisar(f"Sin respuesta a {baud}. Probando otras velocidades...")
+    encontrado = buscar_baud(sensor, otros, 0, timeout_barrido, anunciar=True, avisar=avisar)
     if encontrado is None:
         raise SinRespuesta(sensor.ultimo_ruido)
     return encontrado

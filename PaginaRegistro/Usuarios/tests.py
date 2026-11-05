@@ -1,4 +1,8 @@
-from django.test import TestCase
+import base64
+import json
+import os
+
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from unittest.mock import Mock, patch
@@ -85,24 +89,54 @@ class UserRegistrationFormTests(TestCase):
         self.assertEqual(temp_data['programa_id'], programa.pk)
         self.assertFalse(temp_data['is_staff'])
 
-        uart = Mock(is_open=True)
-        sensor = Mock()
+        import numpy as np
+
+        from Usuarios.hardware.hardware import png_de_pixeles, serializar_template
+
+        minucia = np.zeros((12, 4), dtype=np.float32)
+        plantilla = np.ones((10, 4), dtype=np.float32)
+        imagen = 'data:image/png;base64,' + base64.b64encode(
+            png_de_pixeles(bytes([180]), 1, 1)
+        ).decode('ascii')
+        captura = json.dumps({
+            'accion': 'guardar',
+            'minucias': base64.b64encode(serializar_template(minucia)).decode('ascii'),
+            'imagen': imagen,
+        })
         with (
-            patch('Usuarios.views.get_sensor', return_value=(sensor, uart)),
-            patch(
-                'Usuarios.views.enroll_fingerprint_to_db',
-                return_value=b'template-biometrico',
-            ) as enroll,
+            patch('Usuarios.views.fusionar_plantilla', return_value=plantilla),
             patch('Usuarios.views.IndiceBiometricoRAM.actualizar_usuario') as update_index,
         ):
-            response = self.client.post(reverse('registrar_huella'))
+            for numero in range(1, 4):
+                response = self.client.post(
+                    reverse('registrar_huella'),
+                    data=captura,
+                    content_type='application/json',
+                )
+                self.assertEqual(response.status_code, 200)
+                cuerpo = response.json()
+                self.assertEqual(cuerpo['status'], 'captura')
+                self.assertEqual(cuerpo['toma'], numero)
+                self.assertFalse(cuerpo['completo'])
+                self.assertTrue(cuerpo['imagen'].startswith('data:image/png;base64,'))
+                png = base64.b64decode(cuerpo['imagen'].split(',', 1)[1])
+                self.assertTrue(png.startswith(b'\x89PNG'))
+                self.assertFalse(
+                    get_user_model().objects.filter(email='alumno@example.com').exists()
+                )
+
+            response = self.client.post(
+                reverse('registrar_huella'),
+                data=captura,
+                content_type='application/json',
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['status'], 'success')
+        self.assertTrue(response.json()['completo'])
+        self.assertTrue(response.json()['imagen'].startswith('data:image/png;base64,'))
         usuario = get_user_model().objects.get(email='alumno@example.com')
-        enroll.assert_called_once_with(sensor)
-        update_index.assert_called_once_with(usuario.pk, b'template-biometrico')
-        uart.close.assert_called_once()
+        update_index.assert_called_once_with(usuario.pk, bytes(usuario.huella_template))
         self.assertEqual(usuario.numero_cuenta, '123456789')
         self.assertEqual(usuario.numero_trabajador, 'TRAB-10')
         self.assertEqual(usuario.rfc, 'LOPA000101ABC')
@@ -112,6 +146,104 @@ class UserRegistrationFormTests(TestCase):
         self.assertEqual(usuario.telefono_celular, '5512345678')
         self.assertEqual(usuario.entidad_academica_id, entidad.pk)
         self.assertEqual(usuario.programa_id, programa.pk)
+
+    def test_failed_capture_keeps_previous_images_and_restart_clears_them(self):
+        import numpy as np
+
+        from Usuarios.hardware.hardware import png_de_pixeles, serializar_template
+
+        sesion = self.client.session
+        sesion['temp_user_data'] = {
+            'email': 'alumno@example.com',
+            'nombre': 'Ana',
+            'apellidos': 'López',
+            'password': 'hashed',
+            'is_staff': False,
+        }
+        sesion.save()
+        captura = json.dumps({
+            'accion': 'guardar',
+            'minucias': base64.b64encode(
+                serializar_template(np.zeros((12, 4), dtype=np.float32))
+            ).decode('ascii'),
+            'imagen': 'data:image/png;base64,' + base64.b64encode(
+                png_de_pixeles(bytes([90]), 1, 1)
+            ).decode('ascii'),
+        })
+        primera = self.client.post(
+            reverse('registrar_huella'),
+            data=captura,
+            content_type='application/json',
+        )
+        segunda = self.client.post(
+            reverse('registrar_huella'),
+            data=json.dumps({'accion': 'guardar'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(primera.json()['toma'], 1)
+        self.assertEqual(segunda.status_code, 400)
+        self.assertEqual(segunda.json()['toma'], 1)
+        self.assertEqual(len(self.client.session['huella_tomas']), 1)
+
+        reinicio = self.client.post(
+            reverse('registrar_huella'),
+            data=json.dumps({'accion': 'reiniciar'}),
+            content_type='application/json',
+        )
+        self.assertEqual(reinicio.status_code, 200)
+        self.assertEqual(reinicio.json()['toma'], 0)
+        self.assertEqual(self.client.session['huella_tomas'], [])
+
+    def test_capture_returns_as_soon_as_the_finger_is_still(self):
+        import tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+
+        import numpy as np
+
+        from Usuarios.hardware import hardware as hw
+
+        pixeles = bytes([120]) * (256 * 288)
+        minucia = np.zeros((12, 4), dtype=np.float32)
+        pausas = []
+
+        def anotar_pausa(segundos):
+            pausas.append(segundos)
+
+        with (
+            tempfile.TemporaryDirectory() as carpeta,
+            patch.object(hw, '_leer_foto', return_value=(pixeles, 0)),
+            patch.object(hw, 'analizar', return_value=SimpleNamespace(motivo='dedo')),
+            patch.object(hw, '_minucias_de_foto', return_value=minucia),
+            patch.object(hw.time, 'sleep', side_effect=anotar_pausa),
+        ):
+            foto, puntos = hw._capturar_toma(
+                Mock(),
+                1,
+                None,
+                hw.ESPERA_QUIETO,
+                Path(carpeta),
+                5,
+            )
+
+        self.assertEqual(foto, pixeles)
+        self.assertEqual(len(puntos), 12)
+        self.assertLess(sum(pausas), 1.0)
+        self.assertNotIn(3.0, pausas)
+
+    def test_sensor_status_follows_live_updates(self):
+        from Usuarios.hardware.hardware import _estado
+
+        _estado('Toma 2 de 4. Apoya el centro del dedo.')
+        try:
+            response = self.client.get(reverse('estado_sensor'))
+            self.assertEqual(
+                response.json()['mensaje'],
+                'Toma 2 de 4. Apoya el centro del dedo.',
+            )
+        finally:
+            _estado('Iniciando...')
 
     def test_entidades_endpoint_returns_only_entities_of_selected_program(self):
         from .models import EntidadAcademica, Programa
@@ -239,22 +371,23 @@ class LoginFlowTests(TestCase):
 
         response = self.client.get(reverse('verificar_huella'))
         self.assertContains(response, 'Usar contraseña en su lugar')
+        self.assertContains(response, 'apoya el centro del dedo')
+        self.assertContains(response, 'capturarEnKiosco')
+        self.assertContains(response, '127.0.0.1:8766')
 
     def test_password_alternative_authenticates_without_using_fingerprint_sensor(self):
         self.client.get(reverse('login'))
         self.client.post(reverse('login'), {'email': self.user.email})
 
-        with patch('Usuarios.views.get_sensor') as get_sensor:
-            response = self.client.post(
-                reverse('verificar_huella'),
-                {'auth_method': 'password', 'password': 'correct-password'},
-            )
+        response = self.client.post(
+            reverse('verificar_huella'),
+            {'auth_method': 'password', 'password': 'correct-password'},
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['status'], 'success')
         self.assertTrue(self.client.session.get('_auth_user_id'))
         self.assertNotIn('pre_login_user_id', self.client.session)
-        get_sensor.assert_not_called()
 
     def test_incorrect_password_does_not_authenticate(self):
         self.client.get(reverse('login'))
@@ -274,30 +407,186 @@ class LoginFlowTests(TestCase):
         )
 
     @patch('Usuarios.views.comparar_minucias_fast', return_value=0.8)
-    @patch('Usuarios.views.capturar_minucias_en_vivo', return_value='minucias-capturadas')
-    @patch('Usuarios.views.deserializar_template', return_value='minucias-registradas')
-    @patch('Usuarios.views.get_sensor')
-    def test_fingerprint_authentication_still_works(
-        self,
-        get_sensor,
-        deserialize_template,
-        capture_minutiae,
-        compare_minutiae,
-    ):
-        self.user.huella_template = b'template-registrado'
+    def test_fingerprint_authentication_uses_minutiae_from_the_kiosk(self, compare_minutiae):
+        import numpy as np
+
+        from Usuarios.hardware.hardware import serializar_template
+
+        matriz = np.zeros((12, 4), dtype=np.float32)
+        self.user.huella_template = serializar_template(matriz)
         self.user.save(update_fields=['huella_template'])
-        uart = Mock(is_open=True)
-        sensor = Mock()
-        get_sensor.return_value = (sensor, uart)
         self.client.get(reverse('login'))
         self.client.post(reverse('login'), {'email': self.user.email})
 
-        response = self.client.post(reverse('verificar_huella'))
+        response = self.client.post(reverse('verificar_huella'), {
+            'minucias': base64.b64encode(serializar_template(matriz)).decode('ascii'),
+        })
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['status'], 'success')
         self.assertTrue(self.client.session.get('_auth_user_id'))
-        deserialize_template.assert_called_once_with(bytes(self.user.huella_template))
-        capture_minutiae.assert_called_once_with(sensor)
         compare_minutiae.assert_called_once()
+
+
+class _Puerto:
+    def __init__(self, device, description="", manufacturer="", product="", hwid=""):
+        self.device = device
+        self.description = description
+        self.manufacturer = manufacturer
+        self.product = product
+        self.hwid = hwid
+
+
+class DeteccionPuertoTests(SimpleTestCase):
+    def test_elige_el_cp210_aunque_el_numero_com_cambie(self):
+        from Usuarios.hardware.verificar_as608 import elegir_puerto
+
+        puertos = [
+            _Puerto("COM3", description="USB Serial Device"),
+            _Puerto(
+                "COM12",
+                description="Silicon Labs CP210x USB to UART Bridge (COM12)",
+                manufacturer="Silicon Labs",
+                product="CP210x USB to UART Bridge",
+            ),
+        ]
+        self.assertEqual(elegir_puerto(puertos), "COM12")
+
+    def test_el_puerto_forzado_y_el_ultimo_baud_tienen_prioridad(self):
+        from Usuarios.hardware import hardware as lector
+
+        anterior = lector._baud_detectado
+        lector._baud_detectado = 9600
+        try:
+            entorno = os.environ.copy()
+            entorno.pop("HUELLA_BAUD", None)
+            entorno["HUELLA_PUERTO"] = "COM5"
+            with patch.dict(os.environ, entorno, clear=True):
+                self.assertEqual(lector.encontrar_puerto_arduino(), "COM5")
+                self.assertEqual(lector._baud_pedido(), 9600)
+            with patch.dict(os.environ, {"HUELLA_BAUD": "57600"}, clear=False):
+                self.assertEqual(lector._baud_pedido(), 57600)
+        finally:
+            lector._baud_detectado = anterior
+
+
+class AgenteHuellaTests(SimpleTestCase):
+    def setUp(self):
+        import threading
+        from Usuarios.hardware import agente
+
+        self.agente = agente
+        self.servidor = agente.servir(0)
+        self.hilo = threading.Thread(target=self.servidor.serve_forever, daemon=True)
+        self.hilo.start()
+        puerto = self.servidor.server_address[1]
+        self.base = f'http://127.0.0.1:{puerto}'
+
+    def tearDown(self):
+        self.servidor.shutdown()
+        self.servidor.server_close()
+
+    def _post(self, ruta, datos=None):
+        import urllib.error
+        import urllib.request
+
+        cuerpo = None if datos is None else json.dumps(datos).encode('utf-8')
+        peticion = urllib.request.Request(
+            self.base + ruta,
+            data=cuerpo,
+            method='POST',
+            headers={'Content-Type': 'application/json'} if cuerpo else {},
+        )
+        try:
+            with urllib.request.urlopen(peticion) as respuesta:
+                return respuesta.status, json.loads(respuesta.read().decode('utf-8')), respuesta.headers
+        except urllib.error.HTTPError as error:
+            return error.code, json.loads(error.read().decode('utf-8')), error.headers
+
+    def test_capture_returns_minutiae_and_frees_the_sensor(self):
+        import numpy as np
+
+        uart = Mock(is_open=True)
+        minucia = np.zeros((12, 4), dtype=np.float32)
+        with (
+            patch.object(self.agente, 'get_sensor', return_value=(Mock(), uart)),
+            patch.object(self.agente, 'capturar_minucias_en_vivo', return_value=minucia),
+        ):
+            codigo, cuerpo, headers = self._post('/capturar')
+
+        self.assertEqual(codigo, 200)
+        self.assertTrue(cuerpo['ok'])
+        self.assertEqual(headers['Access-Control-Allow-Origin'], '*')
+        self.agente.minucias_desde_texto(cuerpo['minucias'])
         uart.close.assert_called_once()
+
+        estado = self._get('/estado')
+        self.assertEqual(estado[0], 200)
+        self.assertIn('mensaje', estado[1])
+
+    def _get(self, ruta):
+        import urllib.request
+
+        with urllib.request.urlopen(self.base + ruta) as respuesta:
+            return respuesta.status, json.loads(respuesta.read().decode('utf-8'))
+
+    def test_second_capture_waits_outside_while_the_reader_is_busy(self):
+        import threading
+
+        import numpy as np
+
+        entro = threading.Event()
+        soltar = threading.Event()
+        minucia = np.zeros((12, 4), dtype=np.float32)
+
+        def lento(*args, **kwargs):
+            entro.set()
+            self.assertTrue(soltar.wait(3))
+            return minucia
+
+        with (
+            patch.object(self.agente, 'get_sensor', return_value=(Mock(), Mock(is_open=True))),
+            patch.object(self.agente, 'capturar_minucias_en_vivo', side_effect=lento),
+        ):
+            primera = threading.Thread(target=lambda: self._post('/capturar'))
+            primera.start()
+            self.assertTrue(entro.wait(2))
+            codigo, cuerpo, _headers = self._post('/capturar')
+            soltar.set()
+            primera.join(3)
+
+        self.assertEqual(codigo, 409)
+        self.assertIn('ocupado', cuerpo['mensaje'])
+
+    def test_a_failed_read_does_not_leave_the_reader_locked(self):
+        with patch.object(self.agente, 'get_sensor', side_effect=OSError('sin lector')):
+            primera = self._post('/capturar')
+            segunda = self._post('/capturar')
+
+        self.assertEqual(primera[0], 400)
+        self.assertIn('sin lector', primera[1]['mensaje'])
+        self.assertEqual(segunda[0], 400)
+        self.assertNotEqual(segunda[0], 409)
+
+    def test_enrollment_take_returns_a_png(self):
+        import numpy as np
+
+        from Usuarios.hardware.hardware import ALTO_IMAGEN, ANCHO_IMAGEN
+
+        pixeles = bytes([40]) * (ANCHO_IMAGEN * ALTO_IMAGEN)
+        minucia = np.zeros((12, 4), dtype=np.float32)
+        with (
+            patch.object(self.agente, 'get_sensor', return_value=(Mock(), Mock(is_open=True))),
+            patch.object(
+                self.agente,
+                'capturar_toma_para_pantalla',
+                return_value=(pixeles, minucia),
+            ),
+        ):
+            codigo, cuerpo, _headers = self._post('/toma', {'numero': 1})
+
+        self.assertEqual(codigo, 200)
+        self.assertTrue(cuerpo['imagen'].startswith('data:image/png;base64,'))
+        png = base64.b64decode(cuerpo['imagen'].split(',', 1)[1])
+        self.assertTrue(png.startswith(b'\x89PNG'))
+        self.agente.minucias_desde_texto(cuerpo['minucias'])

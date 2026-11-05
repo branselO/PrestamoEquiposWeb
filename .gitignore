@@ -1,0 +1,21 @@
+# Cada máquina regenera el bytecode. Versionarlo provoca conflictos al hacer pull.
+__pycache__/
+*.py[cod]
+*$py.class
+
+# macOS
+.DS_Store
+
+# La app usa PostgreSQL. El sqlite es un residuo local.
+*.sqlite3
+
+# Secretos y entornos locales
+.env
+.venv/
+venv/
+env/
+
+# Editores y registros
+.idea/
+.vscode/
+*.log
