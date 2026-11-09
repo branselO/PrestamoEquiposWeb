@@ -309,35 +309,16 @@ def _periodo_normal(pixeles: bytes, ancho: int, alto: int, angulo: float) -> int
     return None
 
 
-def _quitar_bandas(pixeles: bytes, ancho: int, alto: int) -> bytes:
-    """Quita la franja de la lámpara, que cruza toda la fila con el mismo brillo."""
-    total = sum(pixeles) / len(pixeles)
-    salida = bytearray(len(pixeles))
-    for y in range(alto):
-        inicio = y * ancho
-        media = sum(pixeles[inicio : inicio + ancho]) / ancho
-        for x in range(ancho):
-            valor = pixeles[inicio + x] - media + total
-            if valor < 0:
-                valor = 0
-            elif valor > 255:
-                valor = 255
-            salida[inicio + x] = int(round(valor))
-    return bytes(salida)
-
-
 def analizar(pixeles: bytes, ancho: int = ANCHO, alto: int = ALTO) -> Analisis:
-    angulos, coherencias, _, _ = _orientacion(pixeles, ancho, alto)
+    angulos, coherencias, media, bloque = _orientacion(pixeles, ancho, alto)
     concentracion, angulo = _direccion_dominante(angulos, coherencias)
     if concentracion >= 0.9:
         periodo = _periodo_normal(pixeles, ancho, alto, angulo)
         if periodo is not None and periodo <= 5:
             return Analisis(pixeles, ancho, alto, [], 0.0, False, "rejilla")
-    limpio = _quitar_bandas(pixeles, ancho, alto)
-    angulos, coherencias, media, bloque = _orientacion(limpio, ancho, alto)
     if concentracion >= 0.9 and media < COHERENCIA_MINIMA:
         return Analisis(pixeles, ancho, alto, [], media, False, "rejilla")
-    realce = _realzar(limpio, ancho, alto, angulos, bloque)
+    realce = _realzar(pixeles, ancho, alto, angulos, bloque)
     bits = _binarizar(realce, ancho, alto)
     _adelgazar(bits, ancho, alto)
     minucias = _minucias(bits, ancho, alto, angulos, coherencias, bloque)

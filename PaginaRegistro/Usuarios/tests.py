@@ -590,3 +590,78 @@ class AgenteHuellaTests(SimpleTestCase):
         png = base64.b64decode(cuerpo['imagen'].split(',', 1)[1])
         self.assertTrue(png.startswith(b'\x89PNG'))
         self.agente.minucias_desde_texto(cuerpo['minucias'])
+
+
+class LecturaSinFiltroDeFranjasTests(SimpleTestCase):
+    """Una fila brillante tiene que llegar intacta al extractor."""
+
+    def _foto_con_franja(self, ancho, alto, fila=10):
+        pixeles = bytearray(
+            (x * 17 + y * 29) % 180 + 30 for y in range(alto) for x in range(ancho)
+        )
+        for x in range(ancho):
+            pixeles[fila * ancho + x] = 255
+        return bytes(pixeles), fila
+
+    def test_minutiae_use_the_sensor_pixels(self):
+        import numpy as np
+
+        from Usuarios.hardware import hardware as hw
+
+        pixeles, fila = self._foto_con_franja(hw.ANCHO_IMAGEN, hw.ALTO_IMAGEN)
+        recibida = {}
+
+        def captura(imagen, verbose=False):
+            recibida['imagen'] = np.array(imagen, copy=True)
+            return np.zeros((12, 4), dtype=np.float32)
+
+        with patch.object(hw, 'extraer_minucias', side_effect=captura):
+            puntos = hw._minucias_de_foto(pixeles)
+
+        self.assertEqual(len(puntos), 12)
+        self.assertEqual(int(recibida['imagen'][fila, 0]), 255)
+        self.assertEqual(int(recibida['imagen'][0, 0]), pixeles[0])
+
+    def test_gabor_capture_keeps_the_bright_row(self):
+        from Usuarios.hardware import prueba_gabor
+        from Usuarios.hardware.verificar_as608 import ALTO_IMAGEN, ANCHO_IMAGEN
+
+        pixeles, fila = self._foto_con_franja(ANCHO_IMAGEN, ALTO_IMAGEN)
+        sensor = Mock()
+        sensor.comando.return_value = Mock(datos=bytes([0x00]))
+        sensor.bajar_imagen.return_value = (0x00, pixeles)
+
+        with (
+            patch('builtins.input', return_value=''),
+            patch.object(prueba_gabor.time, 'sleep'),
+        ):
+            imagen, crudo = prueba_gabor.tomar_foto(sensor)
+
+        self.assertEqual(crudo, pixeles)
+        self.assertEqual(int(imagen[fila, 0]), 255)
+        self.assertEqual(int(imagen[0, 0]), pixeles[0])
+
+    def test_local_analysis_measures_the_original_rows(self):
+        import random
+
+        from Usuarios.hardware import huella_pc
+
+        ancho, alto, fila = 48, 48, 6
+        random.seed(1)
+        pixeles = bytearray(random.randrange(20, 200) for _ in range(ancho * alto))
+        for x in range(ancho):
+            pixeles[fila * ancho + x] = 255
+        pixeles = bytes(pixeles)
+        vistas = []
+        original = huella_pc._realzar
+
+        def espia(foto, ancho_foto, alto_foto, angulos, bloque):
+            vistas.append(bytes(foto))
+            return original(foto, ancho_foto, alto_foto, angulos, bloque)
+
+        with patch.object(huella_pc, '_realzar', side_effect=espia):
+            huella_pc.analizar(pixeles, ancho, alto)
+
+        self.assertTrue(vistas)
+        self.assertEqual(vistas[0][fila * ancho], 255)
+        self.assertEqual(vistas[0][0], pixeles[0])
