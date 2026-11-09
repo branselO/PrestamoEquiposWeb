@@ -20,8 +20,9 @@ promediadas. Identificar es una sola foto. La comparación también prueba un
 corrimiento de hasta 24 píxeles.
 
 `locX` del extractor es la fila y `locY` es la columna. El realce de Gabor sale
-en bool y hay que pasarlo a 0/255. Las rayas de la lámpara se quitan antes de
-medir. El PNG guarda los píxeles originales.
+en bool y hay que pasarlo a 0/255. La foto se mide tal como llega del sensor:
+las franjas horizontales venían de un adaptador defectuoso. El PNG guarda esos
+mismos píxeles.
 
 En Django, `prueba_gabor.py`, `verificar_as608.py` y `huella_pc.py` tienen que
 estar en el mismo paquete o en el PYTHONPATH. El puerto se detecta solo y
@@ -45,7 +46,7 @@ import serial
 import serial.tools.list_ports
 
 try:
-    from .huella_pc import _quitar_bandas, analizar, decodificar_imagen, escribir_png, png_de_pixeles
+    from .huella_pc import analizar, decodificar_imagen, escribir_png, png_de_pixeles
     from .prueba_gabor import (
         MIN_COMUNES,
         UMBRAL,
@@ -64,7 +65,7 @@ try:
         elegir_puerto,
     )
 except ImportError:
-    from huella_pc import _quitar_bandas, analizar, decodificar_imagen, escribir_png, png_de_pixeles
+    from huella_pc import analizar, decodificar_imagen, escribir_png, png_de_pixeles
     from prueba_gabor import (
         MIN_COMUNES,
         UMBRAL,
@@ -227,8 +228,7 @@ def _leer_foto(sensor: AS608) -> tuple[bytes | None, int | None]:
 
 
 def _minucias_de_foto(pixeles: bytes) -> np.ndarray | None:
-    limpio = _quitar_bandas(pixeles, ANCHO_IMAGEN, ALTO_IMAGEN)
-    imagen = np.frombuffer(limpio, dtype=np.uint8).reshape((ALTO_IMAGEN, ANCHO_IMAGEN)).copy()
+    imagen = np.frombuffer(pixeles, dtype=np.uint8).reshape((ALTO_IMAGEN, ANCHO_IMAGEN)).copy()
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning, module=r"fingerprint_feature_extractor")
         warnings.filterwarnings("ignore", category=FutureWarning, module=r"skimage")

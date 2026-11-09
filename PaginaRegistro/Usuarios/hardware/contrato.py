@@ -8,7 +8,8 @@ VERSION_CONTRATO y actualiza CONTRATO.md en agente-kiosco.
 from __future__ import annotations
 
 # Versión del proceso instalado en cada kiosco (aparece en /estado y en el zip).
-VERSION_AGENTE = "1.0.0"
+# 1.1.0 mide la foto tal como llega del AS608, sin restar franjas por fila.
+VERSION_AGENTE = "1.1.0"
 
 # Compatibilidad agente ↔ página. Sube solo cuando el intercambio deja de ser
 # compatible con un kiosco antiguo.
