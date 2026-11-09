@@ -523,6 +523,8 @@ class AgenteHuellaTests(SimpleTestCase):
         estado = self._get('/estado')
         self.assertEqual(estado[0], 200)
         self.assertIn('mensaje', estado[1])
+        self.assertEqual(estado[1]['version_agente'], self.agente.VERSION_AGENTE)
+        self.assertEqual(estado[1]['version_contrato'], self.agente.VERSION_CONTRATO)
 
     def _get(self, ruta):
         import urllib.request

@@ -1,3 +1,13 @@
+## Kioscos (lector de huella)
+
+Cada kiosco **no** necesita el repositorio completo. El artefacto está en [`agente-kiosco/`](agente-kiosco/README.md):
+
+```bash
+python agente-kiosco/empaquetar.py
+```
+
+Eso genera un zip con el agente local (`127.0.0.1:8766`), sin Django ni base de datos.
+
 ## Entorno de Desarrollo Local
 
 Este proyecto utiliza **Docker** para manejar la base de datos PostgreSQL. Para ejecutar pcPumaDjango en tu máquina local, sigue estos pasos:

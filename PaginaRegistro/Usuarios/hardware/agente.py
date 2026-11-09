@@ -3,7 +3,11 @@
 Lee el AS608 de esta computadora y devuelve las minucias. Django, en el
 servidor, identifica o guarda. No abre el puerto serie.
 
-Desde la carpeta PaginaRegistro:
+En un kiosco empaquetado:
+
+    python arrancar.py
+
+Desde la carpeta PaginaRegistro (desarrollo):
 
     python -m Usuarios.hardware.agente
 
@@ -21,6 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
 try:
+    from .contrato import VERSION_AGENTE, VERSION_CONTRATO
     from .hardware import (
         apagar_led_sensor,
         capturar_minucias_en_vivo,
@@ -33,6 +38,7 @@ try:
         serializar_template,
     )
 except ImportError:
+    from contrato import VERSION_AGENTE, VERSION_CONTRATO
     from hardware import (
         apagar_led_sensor,
         capturar_minucias_en_vivo,
@@ -146,7 +152,15 @@ class Manejador(BaseHTTPRequestHandler):
         if ruta != "/estado":
             self._json(404, {"ok": False, "mensaje": "Ruta desconocida."})
             return
-        self._json(200, {"ok": True, "mensaje": estado_sensor()})
+        self._json(
+            200,
+            {
+                "ok": True,
+                "mensaje": estado_sensor(),
+                "version_agente": VERSION_AGENTE,
+                "version_contrato": VERSION_CONTRATO,
+            },
+        )
 
     def _datos(self):
         try:
