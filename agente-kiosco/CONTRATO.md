@@ -14,7 +14,7 @@ Fuente de verdad de los números: `PaginaRegistro/Usuarios/hardware/contrato.py`
 - Solo escucha en `127.0.0.1` (por defecto puerto `8766`).
 - Variable `HUELLA_AGENTE_PUERTO` cambia el puerto.
 - La página usa `HUELLA_AGENTE_URL` (por defecto `http://127.0.0.1:8766`).
-- CORS abierto y `Access-Control-Allow-Private-Network: true` para túneles HTTPS.
+- CORS: `Access-Control-Allow-Origin: *`, métodos `GET`, `POST` y `OPTIONS`, cabecera `Content-Type`.
 
 ## Rutas
 
