@@ -1,0 +1,57 @@
+<script>
+    window.HUELLA_AGENTE = "{{ huella_agente_url|escapejs }}";
+
+    function pedirAlAgente(ruta, opciones) {
+        return fetch(window.HUELLA_AGENTE + ruta, opciones)
+            .then(function (response) {
+                return response.json().catch(function () {
+                    return {};
+                }).then(function (data) {
+                    if (!response.ok || data.ok === false) {
+                        const error = new Error(data.mensaje || 'No se pudo leer la huella.');
+                        error.delAgente = true;
+                        throw error;
+                    }
+                    return data;
+                });
+            })
+            .catch(function (error) {
+                if (error && error.delAgente) {
+                    throw error;
+                }
+                const caido = new Error('No hay lector en este kiosco. Enciende el agente de huella en esta computadora.');
+                caido.delAgente = true;
+                throw caido;
+            });
+    }
+
+    window.vigilarLector = function (mostrar) {
+        let activo = true;
+        const timer = setInterval(function () {
+            fetch(window.HUELLA_AGENTE + '/estado')
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (activo && data && data.mensaje) {
+                        mostrar(data.mensaje);
+                    }
+                })
+                .catch(function () {});
+        }, 400);
+        return function () {
+            activo = false;
+            clearInterval(timer);
+        };
+    };
+
+    window.capturarEnKiosco = function () {
+        return pedirAlAgente('/capturar', { method: 'POST' });
+    };
+
+    window.tomarEnKiosco = function (numero, primera) {
+        return pedirAlAgente('/toma', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ numero: numero, primera: primera || '' })
+        });
+    };
+</script>

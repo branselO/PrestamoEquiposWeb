@@ -1,3 +1,7 @@
+import base64
+import json
+import zlib
+
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.generic import CreateView, TemplateView
@@ -8,16 +12,16 @@ from django.http import JsonResponse
 
 from .forms import EmailLoginForm, StaffSignUpForm, NormalUserCreationForm
 from .models import CustomUser, EntidadAcademica, Programa
-from . import hardware
 from .hardware import (
-    get_sensor,
-    enroll_fingerprint_to_db,
-    capturar_minucias_en_vivo,
+    TOMA_TOTAL,
     deserializar_template,
     comparar_minucias_fast,
-    apagar_led_sensor,
+    estado_sensor,
+    fusionar_plantilla,
+    minucias_desde_texto,
+    serializar_template,
 )
-from .biometria_cache import IndiceBiometricoRAM
+from .hardware.biometria_cache import IndiceBiometricoRAM
 from django.shortcuts import get_object_or_404
 
 
@@ -120,66 +124,193 @@ class CustomLoginView(LoginView):
         return redirect('verificar_huella')
 
 
-# 3. VISTAS DE HARDWARE Y BIOMETRÍA 
+# 3. VISTAS DE HARDWARE Y BIOMETRÍA
+
+SESION_TOMAS = 'huella_tomas'
+
+
+def _cuerpo_json(request):
+    if not request.body:
+        return {}
+    try:
+        datos = json.loads(request.body.decode('utf-8'))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return {}
+    return datos if isinstance(datos, dict) else {}
+
+
+def _tomas_guardadas(request):
+    tomas = request.session.get(SESION_TOMAS) or []
+    return list(tomas) if isinstance(tomas, list) else []
+
+
+def _png_del_kiosco(texto):
+    prefijo = 'data:image/png;base64,'
+    if not isinstance(texto, str) or not texto.startswith(prefijo):
+        return None
+    try:
+        png = base64.b64decode(texto[len(prefijo):], validate=True)
+    except (ValueError, TypeError):
+        return None
+    if not png.startswith(b'\x89PNG'):
+        return None
+    return texto
+
+
+def _guardar_usuario(temp_data, template_bytes):
+    user = CustomUser(
+        email=temp_data['email'],
+        nombre=temp_data['nombre'],
+        apellidos=temp_data['apellidos'],
+        password=temp_data['password'],
+        huella_template=template_bytes,
+        is_staff=temp_data['is_staff'],
+    )
+    for field_name, value in temp_data.items():
+        if field_name not in {
+            'email',
+            'nombre',
+            'apellidos',
+            'password',
+            'is_staff',
+        }:
+            setattr(user, field_name, value)
+    user.save()
+    IndiceBiometricoRAM.actualizar_usuario(user.pk, template_bytes)
+    return user
+
 
 # API PARA EL ESTADO DEL SENSOR Y REGISTRO DE HUELLAS
 def api_estado_sensor(request):
     """Devuelve el texto actual del lector de huellas."""
-    return JsonResponse({'mensaje': hardware.ESTADO_SENSOR})
+    return JsonResponse({'mensaje': estado_sensor()})
+
 
 # API PARA EL REGISTRO DE HUELLAS
 def api_registrar_huella(request):
     if request.method == 'POST':
         temp_data = request.session.get('temp_user_data')
-        
+
         if not temp_data:
             return JsonResponse({'status': 'error', 'message': 'Sesión caducada.'}, status=400)
 
-        sensor = uart = None
-        
-        try:
-            sensor, uart = get_sensor()
-            template_bytes = enroll_fingerprint_to_db(sensor)
-            
-            if template_bytes:
-                user = CustomUser(
-                    email=temp_data['email'],
-                    nombre=temp_data['nombre'],
-                    apellidos=temp_data['apellidos'],
-                    password=temp_data['password'], 
-                    huella_template=template_bytes,
-                    is_staff=temp_data['is_staff']
-                )
-                for field_name, value in temp_data.items():
-                    if field_name not in {
-                        'email',
-                        'nombre',
-                        'apellidos',
-                        'password',
-                        'is_staff',
-                    }:
-                        setattr(user, field_name, value)
+        cuerpo = _cuerpo_json(request)
+        if cuerpo.get('accion') == 'reiniciar':
+            request.session[SESION_TOMAS] = []
+            request.session.modified = True
+            return JsonResponse({
+                'status': 'reiniciado',
+                'message': 'Empezamos de nuevo. Captura la toma 1.',
+                'toma': 0,
+                'total': TOMA_TOTAL,
+                'completo': False,
+            })
 
-                user.save()
-                IndiceBiometricoRAM.actualizar_usuario(user.pk, template_bytes)
-                
-                del request.session['temp_user_data']
-                
-                return JsonResponse({'status': 'success', 'message': '¡Huella y usuario guardados exitosamente!'})
-            else:
-                return JsonResponse({'status': 'error', 'message': 'No se pudo leer la huella. Intente de nuevo.'}, status=400)
-                
-        except (OSError, RuntimeError) as error:
+        if cuerpo.get('accion') != 'guardar':
             return JsonResponse(
-                {'status': 'error', 'message': f'No se pudo registrar la huella: {error}'},
+                {
+                    'status': 'error',
+                    'message': 'La captura se hace en el lector de este kiosco.',
+                    'toma': len(_tomas_guardadas(request)),
+                    'total': TOMA_TOTAL,
+                    'completo': False,
+                },
                 status=400,
             )
-            
-        finally:
-            if sensor:
-                apagar_led_sensor(sensor)
-            if uart and uart.is_open:
-                uart.close()
+
+        tomas = _tomas_guardadas(request)
+        if len(tomas) >= TOMA_TOTAL:
+            tomas = []
+        if tomas:
+            try:
+                deserializar_template(base64.b64decode(tomas[0]))
+            except (ValueError, OSError, json.JSONDecodeError, zlib.error):
+                request.session[SESION_TOMAS] = []
+                request.session.modified = True
+                return JsonResponse(
+                    {
+                        'status': 'error',
+                        'message': 'Se perdieron las tomas anteriores. Empieza de nuevo.',
+                        'toma': 0,
+                        'total': TOMA_TOTAL,
+                        'reiniciar': True,
+                    },
+                    status=400,
+                )
+
+        try:
+            minucias = minucias_desde_texto(cuerpo.get('minucias'))
+        except ValueError as error:
+            return JsonResponse(
+                {
+                    'status': 'error',
+                    'message': str(error),
+                    'toma': len(tomas),
+                    'total': TOMA_TOTAL,
+                    'completo': False,
+                },
+                status=400,
+            )
+        imagen = _png_del_kiosco(cuerpo.get('imagen'))
+        if imagen is None:
+            return JsonResponse(
+                {
+                    'status': 'error',
+                    'message': 'La foto de la toma no llegó. Vuelve a capturar.',
+                    'toma': len(tomas),
+                    'total': TOMA_TOTAL,
+                    'completo': False,
+                },
+                status=400,
+            )
+
+        numero = len(tomas) + 1
+        tomas.append(base64.b64encode(serializar_template(minucias)).decode('ascii'))
+        request.session[SESION_TOMAS] = tomas
+        request.session.modified = True
+
+        if numero < TOMA_TOTAL:
+            return JsonResponse({
+                'status': 'captura',
+                'message': f'Toma {numero} lista. Revisa la foto y pulsa Continuar.',
+                'imagen': imagen,
+                'toma': numero,
+                'total': TOMA_TOTAL,
+                'completo': False,
+            })
+
+        plantilla = fusionar_plantilla(
+            [deserializar_template(base64.b64decode(item)) for item in tomas]
+        )
+        if plantilla is None:
+            request.session[SESION_TOMAS] = []
+            request.session.modified = True
+            return JsonResponse(
+                {
+                    'status': 'error',
+                    'message': 'Las cuatro tomas no alcanzaron para una plantilla. Vuelve a registrar el centro del dedo.',
+                    'imagen': imagen,
+                    'toma': 0,
+                    'total': TOMA_TOTAL,
+                    'completo': False,
+                    'reiniciar': True,
+                },
+                status=400,
+            )
+
+        template_bytes = serializar_template(plantilla)
+        _guardar_usuario(temp_data, template_bytes)
+        del request.session['temp_user_data']
+        request.session[SESION_TOMAS] = []
+        request.session.modified = True
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Huella y usuario guardados. Ya puedes entrar.',
+            'imagen': imagen,
+            'toma': numero,
+            'total': TOMA_TOTAL,
+            'completo': True,
+        })
 
     # Manejo de la vista GET
     if request.method == 'GET':
@@ -235,39 +366,33 @@ def api_login_huella(request):
 
         if not user.huella_template:
             return JsonResponse(
-                {'status': 'error', 'message': 'El usuario no tiene una huella registrada.'},
+                {'status': 'error', 'message': 'Esta cuenta no tiene huella. Entra con la contraseña o registra una.'},
                 status=401,
             )
 
-        sensor = uart = None
         try:
-            sensor, uart = get_sensor()
-            minucias = capturar_minucias_en_vivo(sensor)
+            minucias = minucias_desde_texto(request.POST.get('minucias', ''))
+        except ValueError as error:
+            return JsonResponse({'status': 'error', 'message': str(error)}, status=400)
+        try:
             minucias_registradas = deserializar_template(bytes(user.huella_template))
-            match = comparar_minucias_fast(minucias, minucias_registradas) >= 0.30
-            
-            if match:
-                login(request, user) # Autenticamos en Django
-                request.session.pop('pre_login_user_id', None)
-                return JsonResponse({
-                    'status': 'success', 
-                    'message': '¡Identidad confirmada!',
-                    'redirect_url': reverse('inicio')
-                })
-            else:
-                return JsonResponse({'status': 'error', 'message': 'La huella no coincide.'}, status=401)
-                
-        except (OSError, RuntimeError) as e:
+        except (ValueError, OSError, json.JSONDecodeError, zlib.error):
             return JsonResponse(
-                {'status': 'error', 'message': f'No se pudo verificar la huella: {e}'},
+                {'status': 'error', 'message': 'La huella guardada de esta cuenta no se pudo leer.'},
                 status=500,
             )
-            
-        finally:
-            if sensor:
-                apagar_led_sensor(sensor)
-            if uart and uart.is_open:
-                uart.close()
+        if comparar_minucias_fast(minucias, minucias_registradas) >= 0.30:
+            login(request, user)
+            request.session.pop('pre_login_user_id', None)
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Identidad confirmada, {user.nombre}. Entrando...',
+                'redirect_url': reverse('inicio'),
+            })
+        return JsonResponse({
+            'status': 'error',
+            'message': 'La huella no coincide. Limpia el dedo y apóyalo otra vez en el centro.',
+        }, status=401)
                 
     return render(request, 'Usuarios/login_huella.html', {'usuario': user})
 

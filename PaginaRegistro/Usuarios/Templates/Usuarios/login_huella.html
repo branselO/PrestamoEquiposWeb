@@ -19,6 +19,12 @@
             <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">Hola <strong class="text-slate-900 dark:text-slate-100">{{ usuario.nombre }}</strong>, confirma tu identidad para entrar.</p>
         </header>
 
+        <ol class="mb-4 space-y-2 text-left text-sm text-slate-600 dark:text-slate-300">
+            <li>1. Pulsa <strong class="text-ink dark:text-slate-100">Escanear huella</strong>.</li>
+            <li>2. Cuando la pantalla lo pida, apoya el centro del dedo y no lo muevas.</li>
+            <li>3. Espera el resultado. Si no coincide, limpia el dedo e inténtalo otra vez.</li>
+        </ol>
+
         {% csrf_token %}
 
         <button id="btn-verify" type="button" class="btn btn-primary btn-block" onclick="verificarHuella()">
@@ -43,9 +49,10 @@
             <button class="btn btn-secondary btn-block" type="button" onclick="mostrarHuella()">Usar huella</button>
         </form>
 
-        <div id="status-message" class="status-box info hidden"></div>
+        <div id="status-message" class="status-box info" role="status">Listo. Al pulsar el botón, apoya el dedo en cuanto lo pida este recuadro.</div>
     </div>
 
+    {% include 'Usuarios/_agente_huella.html' %}
     <script>
         const statusBox = document.getElementById('status-message');
 
@@ -60,7 +67,8 @@
             document.getElementById('password-form').classList.add('hidden');
             document.getElementById('btn-verify').classList.remove('hidden');
             document.getElementById('btn-show-password').classList.remove('hidden');
-            statusBox.className = 'status-box info hidden';
+            statusBox.className = 'status-box info';
+            statusBox.innerText = 'Listo. Al pulsar el botón, apoya el dedo en cuanto lo pida este recuadro.';
         }
 
         document.getElementById('password-form').addEventListener('submit', function(event) {
@@ -100,24 +108,40 @@
             });
         });
 
+        let leyendoHuella = false;
+
         function verificarHuella() {
             const btn = document.getElementById('btn-verify');
             const btnText = document.getElementById('btn-text');
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
             btn.disabled = true;
-            btnText.innerText = "Comparando...";
+            btnText.innerText = "Leyendo...";
             statusBox.className = "status-box info";
-            statusBox.innerText = "Coloque su dedo en el sensor...";
-
-            fetch("{% url 'verificar_huella' %}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/x-www-form-urlencoded'
+            statusBox.innerText = "Buscando el lector de este kiosco. En cuanto lo pida, apoya el centro del dedo.";
+            leyendoHuella = true;
+            const detener = window.vigilarLector(function (mensaje) {
+                if (leyendoHuella) {
+                    statusBox.className = 'status-box info';
+                    statusBox.innerText = mensaje;
                 }
+            });
+
+            window.capturarEnKiosco()
+            .then(function (captura) {
+                leyendoHuella = false;
+                detener();
+                statusBox.className = 'status-box info';
+                statusBox.innerText = 'Huella leída. Comparando con la cuenta...';
+                return fetch("{% url 'verificar_huella' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({ minucias: captura.minucias })
+                }).then(response => response.json());
             })
-            .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     statusBox.className = "status-box success";
@@ -132,9 +156,12 @@
                     btnText.innerText = "Reintentar";
                 }
             })
-            .catch(() => {
+            .catch((error) => {
+                leyendoHuella = false;
+                detener();
                 statusBox.className = "status-box error";
-                statusBox.innerText = "Error crítico al contactar con el hardware.";
+                statusBox.innerText = (error && error.delAgente && error.message)
+                    || "No hubo respuesta. Revisa la conexión e inténtalo otra vez.";
                 btn.disabled = false;
                 btnText.innerText = "Reintentar";
             });

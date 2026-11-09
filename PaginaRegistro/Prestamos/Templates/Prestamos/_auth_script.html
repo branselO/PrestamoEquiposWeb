@@ -1,3 +1,4 @@
+{% include 'Usuarios/_agente_huella.html' %}
 <script>
     document.querySelectorAll('[data-auth-form]').forEach(function (form) {
         function actualizar() {
@@ -16,5 +17,92 @@
         }
         form.addEventListener('change', actualizar);
         actualizar();
+
+        form.addEventListener('submit', function (event) {
+            const seleccionado = form.querySelector('input[name="metodo"]:checked');
+            if (!seleccionado || seleccionado.value !== 'huella') {
+                return;
+            }
+            event.preventDefault();
+            const estado = form.querySelector('[data-auth-estado]');
+            const boton = form.querySelector('button[type="submit"]');
+            const textoOriginal = boton ? boton.textContent : '';
+            if (boton) {
+                boton.disabled = true;
+                boton.textContent = 'Leyendo huella...';
+            }
+            if (estado) {
+                estado.className = 'status-box info';
+                estado.textContent = 'Buscando el lector de este kiosco. En cuanto lo pida, apoya el centro del dedo y no lo muevas.';
+            }
+            const detener = window.vigilarLector(function (mensaje) {
+                if (estado) {
+                    estado.className = 'status-box info';
+                    estado.textContent = mensaje;
+                }
+            });
+            const csrf = form.querySelector('[name=csrfmiddlewaretoken]');
+            window.capturarEnKiosco()
+            .then(function (captura) {
+                detener();
+                let campo = form.querySelector('input[name="minucias"]');
+                if (!campo) {
+                    campo = document.createElement('input');
+                    campo.type = 'hidden';
+                    campo.name = 'minucias';
+                    form.appendChild(campo);
+                }
+                campo.value = captura.minucias;
+                if (estado) {
+                    estado.className = 'status-box info';
+                    estado.textContent = 'Huella leída. Buscando a la persona...';
+                }
+                return fetch(form.action || window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'fetch',
+                        'X-CSRFToken': csrf ? csrf.value : ''
+                    },
+                    body: new FormData(form)
+                }).then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                });
+            })
+            .then(function (resultado) {
+                const data = resultado.data || {};
+                if (resultado.ok && data.status === 'success') {
+                    if (estado) {
+                        estado.className = 'status-box success';
+                        estado.textContent = data.message || 'Huella reconocida.';
+                    }
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    }
+                    return;
+                }
+                if (estado) {
+                    estado.className = 'status-box error';
+                    estado.textContent = data.message || 'No se pudo leer la huella. Apoya el centro del dedo e inténtalo otra vez.';
+                }
+                if (boton) {
+                    boton.disabled = false;
+                    boton.textContent = textoOriginal;
+                }
+            })
+            .catch(function (error) {
+                detener();
+                if (estado) {
+                    estado.className = 'status-box error';
+                    estado.textContent = (error && error.delAgente && error.message)
+                        || 'No hubo respuesta. Revisa la conexión e inténtalo otra vez.';
+                }
+                if (boton) {
+                    boton.disabled = false;
+                    boton.textContent = textoOriginal;
+                }
+            });
+        });
     });
 </script>

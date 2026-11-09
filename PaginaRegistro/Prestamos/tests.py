@@ -10,6 +10,17 @@ from Inventario.models import Categoria, Dispositivo
 from .models import Prestamo, Sancion
 
 
+def minucias_de_prueba():
+    import base64
+
+    import numpy as np
+
+    from Usuarios.hardware.hardware import serializar_template
+
+    matriz = np.zeros((12, 4), dtype=np.float32)
+    return base64.b64encode(serializar_template(matriz)).decode('ascii')
+
+
 class RegistrarPrestamoTests(TestCase):
     def setUp(self):
         User = get_user_model()
@@ -55,9 +66,11 @@ class RegistrarPrestamoTests(TestCase):
         })
 
     def confirmar(self, dias=5):
-        fecha = timezone.localdate() + timedelta(days=dias)
+        self.momento_devolucion = (
+            timezone.localtime().replace(second=0, microsecond=0) + timedelta(days=dias)
+        )
         return self.client.post(reverse('registrar_prestamo_paso3'), {
-            'fecha_devolucion': fecha.isoformat(),
+            'fecha_devolucion': self.momento_devolucion.strftime('%Y-%m-%dT%H:%M'),
         })
 
     def iniciar_registro(self, dispositivos=None):
@@ -89,7 +102,8 @@ class RegistrarPrestamoTests(TestCase):
         self.assertRedirects(response, reverse('registrar_prestamo_paso3'))
 
         response = self.client.get(reverse('registrar_prestamo_paso3'))
-        self.assertContains(response, 'type="date"')
+        self.assertContains(response, 'type="datetime-local"')
+        self.assertContains(response, 'dentro de dos horas')
         self.assertContains(response, self.dispositivo.codigo_inventario)
 
         response = self.confirmar()
@@ -99,8 +113,10 @@ class RegistrarPrestamoTests(TestCase):
             response, reverse('registrar_prestamo_exito', args=[prestamo.pk])
         )
         self.assertEqual(
-            timezone.localtime(prestamo.fecha_devolucion_esperada).date(),
-            timezone.localdate() + timedelta(days=5),
+            timezone.localtime(prestamo.fecha_devolucion_esperada).replace(
+                second=0, microsecond=0
+            ),
+            self.momento_devolucion,
         )
         self.assertNotIn('registro_prestamo', self.client.session)
         prestamo = Prestamo.objects.get()
@@ -177,93 +193,173 @@ class RegistrarPrestamoTests(TestCase):
         )
 
     def test_past_date_is_rejected(self):
+        from django.core import mail
+
         self.iniciar_registro()
 
         response = self.confirmar(dias=-1)
 
-        self.assertContains(response, 'no puede ser anterior a hoy')
+        self.assertContains(response, 'no puede ser anterior a este momento')
         self.assertEqual(Prestamo.objects.count(), 0)
         self.assertIn('registro_prestamo', self.client.session)
+        self.assertEqual(mail.outbox, [])
+
+    def test_unchanged_return_datetime_is_two_hours_ahead(self):
+        from datetime import datetime
+
+        self.iniciar_registro()
+        pagina = self.client.get(reverse('registrar_prestamo_paso3'))
+        valor = pagina.content.decode().split('name="fecha_devolucion"', 1)[1]
+        valor = valor.split('value="', 1)[1].split('"', 1)[0]
+        mostrado = timezone.make_aware(
+            datetime.strptime(valor, '%Y-%m-%dT%H:%M'),
+            timezone.get_current_timezone(),
+        )
+        self.assertLess(
+            abs((mostrado - (timezone.now() + timedelta(hours=2))).total_seconds()),
+            90,
+        )
+
+        antes = timezone.now()
+        response = self.client.post(reverse('registrar_prestamo_paso3'), {})
+        despues = timezone.now()
+        prestamo = Prestamo.objects.get()
+        self.assertRedirects(
+            response, reverse('registrar_prestamo_exito', args=[prestamo.pk])
+        )
+        self.assertGreaterEqual(
+            prestamo.fecha_devolucion_esperada,
+            antes + timedelta(hours=2) - timedelta(minutes=1),
+        )
+        self.assertLessEqual(
+            prestamo.fecha_devolucion_esperada,
+            despues + timedelta(hours=2),
+        )
+
+    def test_successful_loan_sanction_and_return_email_the_user(self):
+        from django.core import mail
+
+        self.iniciar_registro()
+        self.confirmar()
+        prestamo = Prestamo.objects.get()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.solicitante.email])
+        self.assertIn(f'préstamo #{prestamo.pk}', mail.outbox[0].body)
+        self.assertIn(self.dispositivo.codigo_inventario, mail.outbox[0].body)
+        self.assertIn(
+            self.momento_devolucion.strftime('%d/%m/%Y %H:%M'),
+            mail.outbox[0].body,
+        )
+
+        mail.outbox.clear()
+        response = self.client.post(reverse('registrar_sancion'), {
+            'prestamo': prestamo.pk,
+            'tipo_sancion': 'mal_uso',
+            'observaciones': 'No devolvió el cargador.',
+        })
+        self.assertRedirects(response, reverse('sanciones'))
+        self.assertEqual(mail.outbox[0].to, [self.solicitante.email])
+        self.assertIn('sanción', mail.outbox[0].subject.lower())
+        self.assertIn('No devolvió el cargador.', mail.outbox[0].body)
+        self.assertIn(f'#{prestamo.pk}', mail.outbox[0].body)
+
+        mail.outbox.clear()
+        detalle = prestamo.detalles.get()
+        response = self.client.post(reverse('registrar_devolucion', args=[prestamo.pk]), {
+            'detalles': [detalle.pk],
+            'comentarios': 'Todo en orden',
+        })
+        self.assertRedirects(response, reverse('prestamos'))
+        self.assertEqual(mail.outbox[0].to, [self.solicitante.email])
+        self.assertIn('devolución', mail.outbox[0].subject.lower())
+        self.assertIn(self.dispositivo.codigo_inventario, mail.outbox[0].body)
+        self.assertIn('Todo en orden', mail.outbox[0].body)
+
+    def test_loan_is_kept_when_the_confirmation_email_fails(self):
+        self.iniciar_registro()
+        with patch('Prestamos.correos.send_mail', side_effect=OSError('smtp')):
+            response = self.confirmar()
+        prestamo = Prestamo.objects.get()
+        self.assertRedirects(
+            response, reverse('registrar_prestamo_exito', args=[prestamo.pk])
+        )
 
     @patch('Prestamos.registro_views.IndiceBiometricoRAM.identificar_1_a_N')
-    @patch(
-        'Prestamos.registro_views.capturar_minucias_en_vivo',
-        return_value='minucias-capturadas',
-    )
-    @patch('Prestamos.registro_views.get_sensor')
-    def test_fingerprint_authenticates_and_closes_sensor(
-        self,
-        get_sensor,
-        capture_minutiae,
-        identify_fingerprint,
-    ):
+    def test_fingerprint_authenticates_from_kiosk_minutiae(self, identify_fingerprint):
         self.solicitante.huella_template = b'huella-registrada'
         self.solicitante.save(update_fields=['huella_template'])
-        uart = Mock(is_open=True)
-        sensor = Mock()
-        get_sensor.return_value = (sensor, uart)
         identify_fingerprint.return_value = (self.solicitante.pk, 0.8, 1.2)
 
         response = self.client.post(self.url, {
             'metodo': 'huella',
+            'minucias': minucias_de_prueba(),
         })
 
         self.assertRedirects(response, reverse('registrar_prestamo_paso2'))
-        capture_minutiae.assert_called_once_with(sensor)
-        identify_fingerprint.assert_called_once_with(
-            'minucias-capturadas',
-            ModeloUsuario=get_user_model(),
-            umbral=0.30,
+        identify_fingerprint.assert_called_once()
+        self.assertEqual(
+            identify_fingerprint.call_args.kwargs['umbral'],
+            0.30,
         )
-        uart.close.assert_called_once()
 
     @patch('Prestamos.registro_views.IndiceBiometricoRAM.identificar_1_a_N')
-    @patch(
-        'Prestamos.registro_views.capturar_minucias_en_vivo',
-        return_value='minucias-capturadas',
-    )
-    @patch('Prestamos.registro_views.get_sensor')
-    def test_fingerprint_authentication_does_not_require_email(
-        self,
-        get_sensor,
-        capture_minutiae,
-        identify_fingerprint,
-    ):
-        uart = Mock(is_open=True)
-        sensor = Mock()
-        get_sensor.return_value = (sensor, uart)
+    def test_fingerprint_authentication_does_not_require_email(self, identify_fingerprint):
         identify_fingerprint.return_value = (self.solicitante.pk, 0.8, 1.2)
 
-        response = self.client.post(self.url, {'metodo': 'huella'})
+        response = self.client.post(self.url, {
+            'metodo': 'huella',
+            'minucias': minucias_de_prueba(),
+        })
 
         self.assertRedirects(response, reverse('registrar_prestamo_paso2'))
         self.assertEqual(
             self.client.session['registro_prestamo']['usuario_id'],
             self.solicitante.pk,
         )
-        uart.close.assert_called_once()
 
     @patch('Prestamos.registro_views.IndiceBiometricoRAM.identificar_1_a_N')
-    @patch(
-        'Prestamos.registro_views.capturar_minucias_en_vivo',
-        return_value='minucias-capturadas',
-    )
-    @patch('Prestamos.registro_views.get_sensor')
-    def test_unmatched_fingerprint_does_not_start_flow(
-        self,
-        get_sensor,
-        capture_minutiae,
-        identify_fingerprint,
-    ):
-        uart = Mock(is_open=True)
-        get_sensor.return_value = (Mock(), uart)
+    def test_unmatched_fingerprint_does_not_start_flow(self, identify_fingerprint):
         identify_fingerprint.return_value = (None, 0.0, 1.2)
 
+        response = self.client.post(self.url, {
+            'metodo': 'huella',
+            'minucias': minucias_de_prueba(),
+        })
+
+        self.assertContains(response, 'No coincide con ninguna huella registrada')
+        self.assertNotIn('registro_prestamo', self.client.session)
+
+    def test_fingerprint_without_kiosk_capture_does_not_search(self):
         response = self.client.post(self.url, {'metodo': 'huella'})
 
-        self.assertContains(response, 'No se encontró una huella coincidente')
+        self.assertContains(response, 'Enciende el agente del lector')
         self.assertNotIn('registro_prestamo', self.client.session)
-        uart.close.assert_called_once()
+
+    @patch('Prestamos.registro_views.IndiceBiometricoRAM.identificar_1_a_N')
+    def test_fingerprint_search_reports_progress_in_json(self, identify_fingerprint):
+        identify_fingerprint.return_value = (self.solicitante.pk, 0.8, 1.2)
+
+        pagina = self.client.get(self.url)
+        self.assertContains(pagina, 'apoya el centro del dedo')
+        self.assertContains(pagina, 'data-auth-estado')
+        self.assertContains(pagina, 'capturarEnKiosco')
+        self.assertContains(pagina, '127.0.0.1:8766')
+
+        response = self.client.post(
+            self.url,
+            {'metodo': 'huella', 'minucias': minucias_de_prueba()},
+            HTTP_X_REQUESTED_WITH='fetch',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cuerpo = response.json()
+        self.assertEqual(cuerpo['status'], 'success')
+        self.assertIn('Alumno Prueba', cuerpo['message'])
+        self.assertEqual(cuerpo['redirect_url'], reverse('registrar_prestamo_paso2'))
+        self.assertEqual(
+            self.client.session['registro_prestamo']['usuario_id'],
+            self.solicitante.pk,
+        )
 
     def test_device_that_becomes_unavailable_cannot_be_loaned(self):
         self.iniciar_registro()
@@ -389,28 +485,17 @@ class RegistrarDevolucionFlujoTests(TestCase):
         self.assertContains(response, 'Devolver sin usuario')
 
     @patch('Prestamos.registro_views.IndiceBiometricoRAM.identificar_1_a_N')
-    @patch(
-        'Prestamos.registro_views.capturar_minucias_en_vivo',
-        return_value='minucias-capturadas',
-    )
-    @patch('Prestamos.registro_views.get_sensor')
-    def test_fingerprint_login_does_not_require_email(
-        self,
-        get_sensor,
-        capture_minutiae,
-        identify_fingerprint,
-    ):
-        uart = Mock(is_open=True)
-        sensor = Mock()
-        get_sensor.return_value = (sensor, uart)
+    def test_fingerprint_login_does_not_require_email(self, identify_fingerprint):
         identify_fingerprint.return_value = (self.alumno.pk, 0.8, 1.2)
 
-        response = self.client.post(reverse('devolucion_login'), {'metodo': 'huella'})
+        response = self.client.post(reverse('devolucion_login'), {
+            'metodo': 'huella',
+            'minucias': minucias_de_prueba(),
+        })
 
         self.assertRedirects(response, reverse('devolucion_pendientes'))
         self.assertEqual(self.client.session['devolucion_usuario_id'], self.alumno.pk)
-        capture_minutiae.assert_called_once_with(sensor)
-        uart.close.assert_called_once()
+        identify_fingerprint.assert_called_once()
 
     def test_wrong_password_and_missing_session(self):
         response = self.client.post(reverse('devolucion_login'), {
