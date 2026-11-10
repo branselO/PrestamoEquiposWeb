@@ -594,8 +594,8 @@ class AgenteHuellaTests(SimpleTestCase):
         self.agente.minucias_desde_texto(cuerpo['minucias'])
 
 
-class LecturaSinFiltroDeFranjasTests(SimpleTestCase):
-    """Una fila brillante tiene que llegar intacta al extractor."""
+class LecturaConFiltroDeFranjasTests(SimpleTestCase):
+    """Una fila del mismo brillo se aplana antes de medir la huella."""
 
     def _foto_con_franja(self, ancho, alto, fila=10):
         pixeles = bytearray(
@@ -605,7 +605,18 @@ class LecturaSinFiltroDeFranjasTests(SimpleTestCase):
             pixeles[fila * ancho + x] = 255
         return bytes(pixeles), fila
 
-    def test_minutiae_use_the_sensor_pixels(self):
+    def _brillo_de_fila(self, pixeles, ancho, fila):
+        total = sum(pixeles) / len(pixeles)
+        inicio = fila * ancho
+        media = sum(pixeles[inicio : inicio + ancho]) / ancho
+        valor = pixeles[inicio] - media + total
+        if valor < 0:
+            valor = 0
+        elif valor > 255:
+            valor = 255
+        return int(round(valor))
+
+    def test_minutiae_drop_the_uniform_row(self):
         import numpy as np
 
         from Usuarios.hardware import hardware as hw
@@ -620,11 +631,13 @@ class LecturaSinFiltroDeFranjasTests(SimpleTestCase):
         with patch.object(hw, 'extraer_minucias', side_effect=captura):
             puntos = hw._minucias_de_foto(pixeles)
 
+        esperado = self._brillo_de_fila(pixeles, hw.ANCHO_IMAGEN, fila)
         self.assertEqual(len(puntos), 12)
-        self.assertEqual(int(recibida['imagen'][fila, 0]), 255)
-        self.assertEqual(int(recibida['imagen'][0, 0]), pixeles[0])
+        self.assertNotEqual(esperado, 255)
+        self.assertEqual(int(recibida['imagen'][fila, 0]), esperado)
+        self.assertEqual(int(recibida['imagen'][fila, 1]), esperado)
 
-    def test_gabor_capture_keeps_the_bright_row(self):
+    def test_gabor_capture_filters_the_bright_row_and_keeps_the_raw_photo(self):
         from Usuarios.hardware import prueba_gabor
         from Usuarios.hardware.verificar_as608 import ALTO_IMAGEN, ANCHO_IMAGEN
 
@@ -639,11 +652,12 @@ class LecturaSinFiltroDeFranjasTests(SimpleTestCase):
         ):
             imagen, crudo = prueba_gabor.tomar_foto(sensor)
 
+        esperado = self._brillo_de_fila(pixeles, ANCHO_IMAGEN, fila)
         self.assertEqual(crudo, pixeles)
-        self.assertEqual(int(imagen[fila, 0]), 255)
-        self.assertEqual(int(imagen[0, 0]), pixeles[0])
+        self.assertEqual(int(imagen[fila, 0]), esperado)
+        self.assertNotEqual(int(imagen[fila, 0]), 255)
 
-    def test_local_analysis_measures_the_original_rows(self):
+    def test_local_analysis_enhances_the_filtered_rows(self):
         import random
 
         from Usuarios.hardware import huella_pc
@@ -661,9 +675,13 @@ class LecturaSinFiltroDeFranjasTests(SimpleTestCase):
             vistas.append(bytes(foto))
             return original(foto, ancho_foto, alto_foto, angulos, bloque)
 
-        with patch.object(huella_pc, '_realzar', side_effect=espia):
+        with (
+            patch.object(huella_pc, '_direccion_dominante', return_value=(0.0, 0.0)),
+            patch.object(huella_pc, '_realzar', side_effect=espia),
+        ):
             huella_pc.analizar(pixeles, ancho, alto)
 
+        esperado = self._brillo_de_fila(pixeles, ancho, fila)
         self.assertTrue(vistas)
-        self.assertEqual(vistas[0][fila * ancho], 255)
-        self.assertEqual(vistas[0][0], pixeles[0])
+        self.assertEqual(vistas[0][fila * ancho], esperado)
+        self.assertNotEqual(vistas[0][fila * ancho], 255)

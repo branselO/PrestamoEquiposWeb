@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 
 try:
-    from .huella_pc import decodificar_imagen, escribir_png
+    from .huella_pc import _quitar_bandas, decodificar_imagen, escribir_png
     from .verificar_as608 import (
         ALTO_IMAGEN,
         ANCHO_IMAGEN,
@@ -37,7 +37,7 @@ try:
         hex_bytes,
     )
 except ImportError:
-    from huella_pc import decodificar_imagen, escribir_png
+    from huella_pc import _quitar_bandas, decodificar_imagen, escribir_png
     from verificar_as608 import (
         ALTO_IMAGEN,
         ANCHO_IMAGEN,
@@ -133,7 +133,8 @@ def tomar_foto(
         if copia:
             copia_ruta = guardar_png(carpeta, pixeles, copia)
             print(f"Copia en {copia_ruta.resolve()}.")
-    imagen = np.frombuffer(pixeles, dtype=np.uint8).reshape((ALTO_IMAGEN, ANCHO_IMAGEN)).copy()
+    limpio = _quitar_bandas(pixeles, ANCHO_IMAGEN, ALTO_IMAGEN)
+    imagen = np.frombuffer(limpio, dtype=np.uint8).reshape((ALTO_IMAGEN, ANCHO_IMAGEN)).copy()
     return imagen, pixeles
 
 
