@@ -172,9 +172,14 @@
                 detener();
                 capturando = false;
                 document.getElementById('btn-reiniciar').disabled = false;
-                statusBox.className = 'status-box error';
-                statusBox.innerText = (error && error.delAgente && error.message)
-                    || 'No hubo respuesta. Revisa que el agente del lector esté encendido.';
+                if (error && error.cancelado) {
+                    statusBox.className = 'status-box info';
+                    statusBox.innerText = 'Lectura cancelada. Puedes capturar otra vez.';
+                } else {
+                    statusBox.className = 'status-box error';
+                    statusBox.innerText = (error && error.delAgente && error.message)
+                        || 'No hubo respuesta. Revisa que el agente del lector esté encendido.';
+                }
                 btn.disabled = false;
                 btnText.innerText = textoBoton();
             });
@@ -182,7 +187,8 @@
 
         function reiniciarRegistro() {
             if (capturando) {
-                return;
+                window.cancelarLecturaKiosco();
+                capturando = false;
             }
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             const statusBox = document.getElementById('status-message');

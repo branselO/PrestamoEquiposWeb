@@ -8,13 +8,13 @@ VERSION_CONTRATO y actualiza CONTRATO.md en agente-kiosco.
 from __future__ import annotations
 
 # Versión del proceso instalado en cada kiosco (aparece en /estado y en el zip).
-# 1.2.0 vuelve a restar la franja horizontal de cada fila antes de medir.
-VERSION_AGENTE = "1.2.0"
+# 1.3.0 acepta POST /cancelar para soltar el lector si la página aborta.
+VERSION_AGENTE = "1.3.0"
 
 # Compatibilidad agente ↔ página. Sube solo cuando el intercambio deja de ser
 # compatible con un kiosco antiguo.
-VERSION_CONTRATO = 1
+VERSION_CONTRATO = 2
 
-RUTAS = ("/estado", "/capturar", "/toma")
+RUTAS = ("/estado", "/capturar", "/toma", "/cancelar")
 HOST_LOCAL = "127.0.0.1"
 PUERTO_DEFAULT = 8766

@@ -570,6 +570,89 @@ class AgenteHuellaTests(SimpleTestCase):
         self.assertEqual(segunda[0], 400)
         self.assertNotEqual(segunda[0], 409)
 
+    def test_cancel_releases_the_reader_for_a_new_capture(self):
+        import threading
+        import time
+
+        import numpy as np
+
+        entro = threading.Event()
+        termino = []
+        llamadas = {'n': 0}
+        minucia = np.zeros((12, 4), dtype=np.float32)
+
+        def lento(*args, **kwargs):
+            llamadas['n'] += 1
+            if llamadas['n'] > 1:
+                return minucia
+            entro.set()
+            fin = time.monotonic() + 3
+            while time.monotonic() < fin:
+                if self.agente._cancelar.is_set():
+                    raise self.agente.LecturaCancelada('Lectura cancelada.')
+                time.sleep(0.05)
+            return minucia
+
+        with (
+            patch.object(self.agente, 'get_sensor', return_value=(Mock(), Mock(is_open=True))),
+            patch.object(self.agente, 'capturar_minucias_en_vivo', side_effect=lento),
+        ):
+            primera = threading.Thread(
+                target=lambda: termino.append(self._post('/capturar'))
+            )
+            primera.start()
+            self.assertTrue(entro.wait(2))
+            cancelado = self._post('/cancelar')
+            primera.join(3)
+            segunda = self._post('/capturar')
+
+        self.assertEqual(cancelado[0], 200)
+        self.assertTrue(cancelado[1]['cancelado'])
+        self.assertEqual(termino[0][0], 499)
+        self.assertTrue(termino[0][1]['cancelado'])
+        self.assertEqual(segunda[0], 200)
+        self.assertTrue(segunda[1]['ok'])
+
+    def test_a_new_capture_takes_over_a_stuck_reader(self):
+        import threading
+        import time
+
+        import numpy as np
+
+        entro = threading.Event()
+        termino = []
+        llamadas = {'n': 0}
+        minucia = np.zeros((12, 4), dtype=np.float32)
+
+        def lento(*args, **kwargs):
+            llamadas['n'] += 1
+            if llamadas['n'] > 1:
+                return minucia
+            entro.set()
+            fin = time.monotonic() + 3
+            while time.monotonic() < fin:
+                if self.agente._cancelar.is_set():
+                    raise self.agente.LecturaCancelada('Lectura cancelada.')
+                time.sleep(0.05)
+            return minucia
+
+        with (
+            patch.object(self.agente, 'get_sensor', return_value=(Mock(), Mock(is_open=True))),
+            patch.object(self.agente, 'capturar_minucias_en_vivo', side_effect=lento),
+        ):
+            primera = threading.Thread(
+                target=lambda: termino.append(self._post('/capturar'))
+            )
+            primera.start()
+            self.assertTrue(entro.wait(2))
+            segunda = self._post('/capturar')
+            primera.join(3)
+
+        self.assertEqual(segunda[0], 200)
+        self.assertTrue(segunda[1]['ok'])
+        self.assertEqual(termino[0][0], 499)
+        self.assertTrue(termino[0][1]['cancelado'])
+
     def test_enrollment_take_returns_a_png(self):
         import numpy as np
 

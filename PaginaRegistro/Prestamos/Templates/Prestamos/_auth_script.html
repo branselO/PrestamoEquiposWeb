@@ -15,7 +15,13 @@
             if (contrasena) contrasena.required = !huella;
             if (sensor) sensor.classList.toggle('hidden', !huella);
         }
-        form.addEventListener('change', actualizar);
+        form.addEventListener('change', function () {
+            const seleccionado = form.querySelector('input[name="metodo"]:checked');
+            if (!seleccionado || seleccionado.value !== 'huella') {
+                window.cancelarLecturaKiosco();
+            }
+            actualizar();
+        });
         actualizar();
 
         form.addEventListener('submit', function (event) {
@@ -94,9 +100,14 @@
             .catch(function (error) {
                 detener();
                 if (estado) {
-                    estado.className = 'status-box error';
-                    estado.textContent = (error && error.delAgente && error.message)
-                        || 'No hubo respuesta. Revisa la conexión e inténtalo otra vez.';
+                    if (error && error.cancelado) {
+                        estado.className = 'status-box info';
+                        estado.textContent = 'Lectura cancelada. Puedes intentarlo otra vez.';
+                    } else {
+                        estado.className = 'status-box error';
+                        estado.textContent = (error && error.delAgente && error.message)
+                            || 'No hubo respuesta. Revisa la conexión e inténtalo otra vez.';
+                    }
                 }
                 if (boton) {
                     boton.disabled = false;

@@ -27,9 +27,11 @@ from urllib.parse import urlparse
 try:
     from .contrato import VERSION_AGENTE, VERSION_CONTRATO
     from .hardware import (
+        LecturaCancelada,
         apagar_led_sensor,
         capturar_minucias_en_vivo,
         capturar_toma_para_pantalla,
+        configurar_cancelacion,
         estado_sensor,
         get_sensor,
         minucias_desde_texto,
@@ -40,9 +42,11 @@ try:
 except ImportError:
     from contrato import VERSION_AGENTE, VERSION_CONTRATO
     from hardware import (
+        LecturaCancelada,
         apagar_led_sensor,
         capturar_minucias_en_vivo,
         capturar_toma_para_pantalla,
+        configurar_cancelacion,
         estado_sensor,
         get_sensor,
         minucias_desde_texto,
@@ -54,21 +58,43 @@ except ImportError:
 import base64
 
 _candado = threading.Lock()
+_cancelar = threading.Event()
 _OCUPADO = "El lector está ocupado. Espera a que termine la lectura en curso."
+_CANCELADO = "Lectura cancelada."
+
+configurar_cancelacion(_cancelar.is_set)
 
 
 def _minucias_b64(matriz) -> str:
     return base64.b64encode(serializar_template(matriz)).decode("ascii")
 
 
+def pedir_cancelar() -> None:
+    """La página abortó: suelta el candado cuando el bucle note la bandera."""
+    _cancelar.set()
+    publicar_estado(_CANCELADO)
+
+
+def _tomar_candado():
+    if _candado.acquire(blocking=False):
+        return True
+    # Una captura nueva pide a la anterior que suelte el lector.
+    _cancelar.set()
+    return _candado.acquire(timeout=1.5)
+
+
 def _con_lector(operacion):
-    if not _candado.acquire(blocking=False):
+    if not _tomar_candado():
         return 409, {"ok": False, "mensaje": _OCUPADO}
+    _cancelar.clear()
     sensor = uart = None
     try:
         publicar_estado("Buscando el lector USB. En cuanto esté listo, apoya el centro del dedo.")
         sensor, uart = get_sensor()
         return operacion(sensor)
+    except LecturaCancelada:
+        publicar_estado(_CANCELADO)
+        return 499, {"ok": False, "mensaje": _CANCELADO, "cancelado": True}
     except (OSError, RuntimeError) as error:
         publicar_estado("No se pudo usar el lector. Revisa el USB y vuelve a intentar.")
         return 400, {"ok": False, "mensaje": str(error)}
@@ -77,6 +103,7 @@ def _con_lector(operacion):
             apagar_led_sensor(sensor)
         if uart is not None and getattr(uart, "is_open", False):
             uart.close()
+        _cancelar.clear()
         _candado.release()
 
 
@@ -181,6 +208,10 @@ class Manejador(BaseHTTPRequestHandler):
     def do_POST(self):
         ruta = urlparse(self.path).path
         datos = self._datos()
+        if ruta == "/cancelar":
+            pedir_cancelar()
+            self._json(200, {"ok": True, "mensaje": _CANCELADO, "cancelado": True})
+            return
         if ruta == "/capturar":
             codigo, cuerpo = capturar_identificacion()
         elif ruta == "/toma":
@@ -190,7 +221,11 @@ class Manejador(BaseHTTPRequestHandler):
                 codigo, cuerpo = capturar_una_toma(datos)
         else:
             codigo, cuerpo = 404, {"ok": False, "mensaje": "Ruta desconocida."}
-        self._json(codigo, cuerpo)
+        try:
+            self._json(codigo, cuerpo)
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            # El navegador ya abortó el fetch al cancelar o al salir de la página.
+            return
 
 
 def servir(puerto: int = 0):

@@ -23,9 +23,12 @@ Fuente de verdad de los números: `PaginaRegistro/Usuarios/hardware/contrato.py`
 | `GET` | `/estado` | — | `ok`, `mensaje`, `version_agente`, `version_contrato` |
 | `POST` | `/capturar` | vacío | `ok`, `minucias` (base64), `mensaje` |
 | `POST` | `/toma` | `{"numero": 1..4, "primera": "<base64 opcional>"}` | `ok`, `numero`, `minucias`, `imagen` (PNG data URL), `mensaje` |
+| `POST` | `/cancelar` | vacío | `ok`, `mensaje`, `cancelado: true` |
 | `OPTIONS` | cualquiera | — | preflight CORS |
 
 Si el lector está ocupado: HTTP `409` con `ok: false`.
+
+Si la página cancela con `/cancelar` mientras hay una lectura: esa lectura responde HTTP `499` con `ok: false` y `cancelado: true`, y suelta el candado.
 
 ## Minucias
 
