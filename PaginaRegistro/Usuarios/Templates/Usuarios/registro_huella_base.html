@@ -185,21 +185,26 @@
             });
         }
 
+        function limpiarTomasEnServidor(opciones) {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            return fetch("{% url 'registrar_huella' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken ? csrfToken.value : '',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ accion: 'reiniciar' }),
+                keepalive: !!(opciones && opciones.keepalive)
+            });
+        }
+
         function reiniciarRegistro() {
             if (capturando) {
                 window.cancelarLecturaKiosco();
                 capturando = false;
             }
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             const statusBox = document.getElementById('status-message');
-            fetch("{% url 'registrar_huella' %}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ accion: 'reiniciar' })
-            })
+            limpiarTomasEnServidor()
             .then(response => response.json())
             .then((data) => {
                 tomasListas = 0;
@@ -220,6 +225,14 @@
                 statusBox.innerText = 'No se pudo reiniciar el registro.';
             });
         }
+
+        // Regresar / cerrar / recargar: no dejes tomas a medias para el siguiente intento.
+        window.addEventListener('pagehide', function () {
+            window.cancelarLecturaKiosco();
+            try {
+                limpiarTomasEnServidor({ keepalive: true }).catch(function () {});
+            } catch (_error) {}
+        });
     </script>
 </body>
 </html>

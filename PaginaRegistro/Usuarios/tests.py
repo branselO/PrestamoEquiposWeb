@@ -195,6 +195,67 @@ class UserRegistrationFormTests(TestCase):
         self.assertEqual(reinicio.json()['toma'], 0)
         self.assertEqual(self.client.session['huella_tomas'], [])
 
+    def test_opening_the_registration_page_drops_leftover_captures(self):
+        import numpy as np
+
+        from Usuarios.hardware.hardware import png_de_pixeles, serializar_template
+
+        sesion = self.client.session
+        sesion['temp_user_data'] = {
+            'email': 'alumno@example.com',
+            'nombre': 'Ana',
+            'apellidos': 'López',
+            'password': 'hashed',
+            'is_staff': False,
+        }
+        sesion.save()
+        captura = json.dumps({
+            'accion': 'guardar',
+            'minucias': base64.b64encode(
+                serializar_template(np.zeros((12, 4), dtype=np.float32))
+            ).decode('ascii'),
+            'imagen': 'data:image/png;base64,' + base64.b64encode(
+                png_de_pixeles(bytes([90]), 1, 1)
+            ).decode('ascii'),
+        })
+        self.client.post(
+            reverse('registrar_huella'),
+            data=captura,
+            content_type='application/json',
+        )
+        self.client.post(
+            reverse('registrar_huella'),
+            data=captura,
+            content_type='application/json',
+        )
+        self.assertEqual(len(self.client.session['huella_tomas']), 2)
+
+        pagina = self.client.get(reverse('registrar_huella'))
+        self.assertEqual(pagina.status_code, 200)
+        self.assertEqual(self.client.session['huella_tomas'], [])
+
+        primera = self.client.post(
+            reverse('registrar_huella'),
+            data=captura,
+            content_type='application/json',
+        )
+        self.assertEqual(primera.status_code, 200)
+        self.assertEqual(primera.json()['toma'], 1)
+        self.assertEqual(len(self.client.session['huella_tomas']), 1)
+
+    def test_restart_clears_captures_even_without_temp_user(self):
+        sesion = self.client.session
+        sesion['huella_tomas'] = ['toma-vieja']
+        sesion.save()
+
+        reinicio = self.client.post(
+            reverse('registrar_huella'),
+            data=json.dumps({'accion': 'reiniciar'}),
+            content_type='application/json',
+        )
+        self.assertEqual(reinicio.status_code, 200)
+        self.assertEqual(self.client.session['huella_tomas'], [])
+
     def test_capture_returns_as_soon_as_the_finger_is_still(self):
         import tempfile
         from pathlib import Path
