@@ -15,6 +15,9 @@ __pycache__/
 venv/
 env/
 
+# Zip y carpeta generados para instalar en kioscos
+agente-kiosco/dist/
+
 # Editores y registros
 .idea/
 .vscode/

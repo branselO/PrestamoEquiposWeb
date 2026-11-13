@@ -57,10 +57,18 @@
         const statusBox = document.getElementById('status-message');
 
         function mostrarContrasena() {
+            window.cancelarLecturaKiosco();
+            leyendoHuella = false;
             document.getElementById('btn-verify').classList.add('hidden');
             document.getElementById('btn-show-password').classList.add('hidden');
             document.getElementById('password-form').classList.remove('hidden');
             document.getElementById('password').focus();
+            const btn = document.getElementById('btn-verify');
+            const btnText = document.getElementById('btn-text');
+            btn.disabled = false;
+            btnText.innerText = 'Escanear huella';
+            statusBox.className = 'status-box info';
+            statusBox.innerText = 'Listo. Al pulsar el botón, apoya el dedo en cuanto lo pida este recuadro.';
         }
 
         function mostrarHuella() {
@@ -159,9 +167,14 @@
             .catch((error) => {
                 leyendoHuella = false;
                 detener();
-                statusBox.className = "status-box error";
-                statusBox.innerText = (error && error.delAgente && error.message)
-                    || "No hubo respuesta. Revisa la conexión e inténtalo otra vez.";
+                if (error && error.cancelado) {
+                    statusBox.className = "status-box info";
+                    statusBox.innerText = "Lectura cancelada. Puedes escanear otra vez.";
+                } else {
+                    statusBox.className = "status-box error";
+                    statusBox.innerText = (error && error.delAgente && error.message)
+                        || "No hubo respuesta. Revisa la conexión e inténtalo otra vez.";
+                }
                 btn.disabled = false;
                 btnText.innerText = "Reintentar";
             });

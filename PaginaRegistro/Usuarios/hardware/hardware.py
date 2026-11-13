@@ -93,6 +93,11 @@ ESPERA_LEVANTAR = 20.0
 INTENTOS_POR_TOMA = 3
 CARPETA = Path("huellas-gabor")
 ESTADO_SENSOR = "Iniciando..."
+_cancelar_lectura = None
+
+
+class LecturaCancelada(RuntimeError):
+    """La página abortó la captura. El agente suelta el lector."""
 
 AVISOS = (
     "Toma {n} de {total}. Apoya el centro del dedo, con presión media.",
@@ -114,6 +119,22 @@ def estado_sensor() -> str:
 
 def publicar_estado(texto: str) -> None:
     _estado(texto)
+
+
+def configurar_cancelacion(callback) -> None:
+    """El agente pasa un callable que indica si la página canceló la lectura."""
+    global _cancelar_lectura
+    _cancelar_lectura = callback
+
+
+def _lectura_cancelada() -> bool:
+    return bool(_cancelar_lectura and _cancelar_lectura())
+
+
+def _revisar_cancelacion() -> None:
+    if _lectura_cancelada():
+        _estado("Lectura cancelada.")
+        raise LecturaCancelada("Lectura cancelada.")
 
 
 def encontrar_puerto_arduino():
@@ -257,6 +278,7 @@ def _diferencia(primera: bytes, segunda: bytes) -> float:
 def _esperar_apoyo(sensor: AS608, mensaje: str, limite: float) -> bytes | None:
     fin = time.monotonic() + limite
     while time.monotonic() < fin:
+        _revisar_cancelacion()
         _estado(mensaje)
         pixeles, codigo = _leer_foto(sensor)
         if pixeles is None:
@@ -275,6 +297,7 @@ def _esperar_apoyo(sensor: AS608, mensaje: str, limite: float) -> bytes | None:
 def _esperar_levantar(sensor: AS608, anterior: bytes, limite: float) -> None:
     fin = time.monotonic() + limite
     while time.monotonic() < fin:
+        _revisar_cancelacion()
         _estado("Levanta el dedo.")
         pixeles, _codigo = _leer_foto(sensor)
         if pixeles is None:
@@ -298,6 +321,7 @@ def _confirmar_quieto(sensor: AS608, apoyo: bytes, espera: float) -> tuple[bytes
     fin = time.monotonic() + max(0.0, espera - pausa)
     anterior = apoyo
     while True:
+        _revisar_cancelacion()
         pixeles, codigo = _leer_foto(sensor)
         if pixeles is None:
             if time.monotonic() >= fin:
@@ -335,6 +359,7 @@ def _capturar_toma(
 ) -> tuple[bytes, np.ndarray]:
     aviso = aviso or AVISOS[numero - 1].format(n=numero, total=TOMA_TOTAL)
     for _intento in range(INTENTOS_POR_TOMA):
+        _revisar_cancelacion()
         apoyo = _esperar_apoyo(sensor, aviso, limite_dedo)
         if apoyo is None:
             _estado("No llegó el dedo.")

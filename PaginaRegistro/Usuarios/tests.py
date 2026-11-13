@@ -195,6 +195,67 @@ class UserRegistrationFormTests(TestCase):
         self.assertEqual(reinicio.json()['toma'], 0)
         self.assertEqual(self.client.session['huella_tomas'], [])
 
+    def test_opening_the_registration_page_drops_leftover_captures(self):
+        import numpy as np
+
+        from Usuarios.hardware.hardware import png_de_pixeles, serializar_template
+
+        sesion = self.client.session
+        sesion['temp_user_data'] = {
+            'email': 'alumno@example.com',
+            'nombre': 'Ana',
+            'apellidos': 'López',
+            'password': 'hashed',
+            'is_staff': False,
+        }
+        sesion.save()
+        captura = json.dumps({
+            'accion': 'guardar',
+            'minucias': base64.b64encode(
+                serializar_template(np.zeros((12, 4), dtype=np.float32))
+            ).decode('ascii'),
+            'imagen': 'data:image/png;base64,' + base64.b64encode(
+                png_de_pixeles(bytes([90]), 1, 1)
+            ).decode('ascii'),
+        })
+        self.client.post(
+            reverse('registrar_huella'),
+            data=captura,
+            content_type='application/json',
+        )
+        self.client.post(
+            reverse('registrar_huella'),
+            data=captura,
+            content_type='application/json',
+        )
+        self.assertEqual(len(self.client.session['huella_tomas']), 2)
+
+        pagina = self.client.get(reverse('registrar_huella'))
+        self.assertEqual(pagina.status_code, 200)
+        self.assertEqual(self.client.session['huella_tomas'], [])
+
+        primera = self.client.post(
+            reverse('registrar_huella'),
+            data=captura,
+            content_type='application/json',
+        )
+        self.assertEqual(primera.status_code, 200)
+        self.assertEqual(primera.json()['toma'], 1)
+        self.assertEqual(len(self.client.session['huella_tomas']), 1)
+
+    def test_restart_clears_captures_even_without_temp_user(self):
+        sesion = self.client.session
+        sesion['huella_tomas'] = ['toma-vieja']
+        sesion.save()
+
+        reinicio = self.client.post(
+            reverse('registrar_huella'),
+            data=json.dumps({'accion': 'reiniciar'}),
+            content_type='application/json',
+        )
+        self.assertEqual(reinicio.status_code, 200)
+        self.assertEqual(self.client.session['huella_tomas'], [])
+
     def test_capture_returns_as_soon_as_the_finger_is_still(self):
         import tempfile
         from pathlib import Path
@@ -339,6 +400,11 @@ class UserRegistrationFormTests(TestCase):
         ):
             with self.subTest(value=value):
                 self.assertContains(response, value)
+        self.assertContains(response, 'Enviar correo')
+        self.assertContains(response, 'mailto:ana@example.com')
+        self.assertContains(response, 'PCPUMA - SISTEMA DE PRESTAMOS')
+        self.assertContains(response, 'id="correo-asunto"')
+        self.assertContains(response, 'id="correo-cuerpo"')
 
 
 class LoginFlowTests(TestCase):
@@ -523,6 +589,8 @@ class AgenteHuellaTests(SimpleTestCase):
         estado = self._get('/estado')
         self.assertEqual(estado[0], 200)
         self.assertIn('mensaje', estado[1])
+        self.assertEqual(estado[1]['version_agente'], self.agente.VERSION_AGENTE)
+        self.assertEqual(estado[1]['version_contrato'], self.agente.VERSION_CONTRATO)
 
     def _get(self, ruta):
         import urllib.request
@@ -568,6 +636,89 @@ class AgenteHuellaTests(SimpleTestCase):
         self.assertEqual(segunda[0], 400)
         self.assertNotEqual(segunda[0], 409)
 
+    def test_cancel_releases_the_reader_for_a_new_capture(self):
+        import threading
+        import time
+
+        import numpy as np
+
+        entro = threading.Event()
+        termino = []
+        llamadas = {'n': 0}
+        minucia = np.zeros((12, 4), dtype=np.float32)
+
+        def lento(*args, **kwargs):
+            llamadas['n'] += 1
+            if llamadas['n'] > 1:
+                return minucia
+            entro.set()
+            fin = time.monotonic() + 3
+            while time.monotonic() < fin:
+                if self.agente._cancelar.is_set():
+                    raise self.agente.LecturaCancelada('Lectura cancelada.')
+                time.sleep(0.05)
+            return minucia
+
+        with (
+            patch.object(self.agente, 'get_sensor', return_value=(Mock(), Mock(is_open=True))),
+            patch.object(self.agente, 'capturar_minucias_en_vivo', side_effect=lento),
+        ):
+            primera = threading.Thread(
+                target=lambda: termino.append(self._post('/capturar'))
+            )
+            primera.start()
+            self.assertTrue(entro.wait(2))
+            cancelado = self._post('/cancelar')
+            primera.join(3)
+            segunda = self._post('/capturar')
+
+        self.assertEqual(cancelado[0], 200)
+        self.assertTrue(cancelado[1]['cancelado'])
+        self.assertEqual(termino[0][0], 499)
+        self.assertTrue(termino[0][1]['cancelado'])
+        self.assertEqual(segunda[0], 200)
+        self.assertTrue(segunda[1]['ok'])
+
+    def test_a_new_capture_takes_over_a_stuck_reader(self):
+        import threading
+        import time
+
+        import numpy as np
+
+        entro = threading.Event()
+        termino = []
+        llamadas = {'n': 0}
+        minucia = np.zeros((12, 4), dtype=np.float32)
+
+        def lento(*args, **kwargs):
+            llamadas['n'] += 1
+            if llamadas['n'] > 1:
+                return minucia
+            entro.set()
+            fin = time.monotonic() + 3
+            while time.monotonic() < fin:
+                if self.agente._cancelar.is_set():
+                    raise self.agente.LecturaCancelada('Lectura cancelada.')
+                time.sleep(0.05)
+            return minucia
+
+        with (
+            patch.object(self.agente, 'get_sensor', return_value=(Mock(), Mock(is_open=True))),
+            patch.object(self.agente, 'capturar_minucias_en_vivo', side_effect=lento),
+        ):
+            primera = threading.Thread(
+                target=lambda: termino.append(self._post('/capturar'))
+            )
+            primera.start()
+            self.assertTrue(entro.wait(2))
+            segunda = self._post('/capturar')
+            primera.join(3)
+
+        self.assertEqual(segunda[0], 200)
+        self.assertTrue(segunda[1]['ok'])
+        self.assertEqual(termino[0][0], 499)
+        self.assertTrue(termino[0][1]['cancelado'])
+
     def test_enrollment_take_returns_a_png(self):
         import numpy as np
 
@@ -590,3 +741,96 @@ class AgenteHuellaTests(SimpleTestCase):
         png = base64.b64decode(cuerpo['imagen'].split(',', 1)[1])
         self.assertTrue(png.startswith(b'\x89PNG'))
         self.agente.minucias_desde_texto(cuerpo['minucias'])
+
+
+class LecturaConFiltroDeFranjasTests(SimpleTestCase):
+    """Una fila del mismo brillo se aplana antes de medir la huella."""
+
+    def _foto_con_franja(self, ancho, alto, fila=10):
+        pixeles = bytearray(
+            (x * 17 + y * 29) % 180 + 30 for y in range(alto) for x in range(ancho)
+        )
+        for x in range(ancho):
+            pixeles[fila * ancho + x] = 255
+        return bytes(pixeles), fila
+
+    def _brillo_de_fila(self, pixeles, ancho, fila):
+        total = sum(pixeles) / len(pixeles)
+        inicio = fila * ancho
+        media = sum(pixeles[inicio : inicio + ancho]) / ancho
+        valor = pixeles[inicio] - media + total
+        if valor < 0:
+            valor = 0
+        elif valor > 255:
+            valor = 255
+        return int(round(valor))
+
+    def test_minutiae_drop_the_uniform_row(self):
+        import numpy as np
+
+        from Usuarios.hardware import hardware as hw
+
+        pixeles, fila = self._foto_con_franja(hw.ANCHO_IMAGEN, hw.ALTO_IMAGEN)
+        recibida = {}
+
+        def captura(imagen, verbose=False):
+            recibida['imagen'] = np.array(imagen, copy=True)
+            return np.zeros((12, 4), dtype=np.float32)
+
+        with patch.object(hw, 'extraer_minucias', side_effect=captura):
+            puntos = hw._minucias_de_foto(pixeles)
+
+        esperado = self._brillo_de_fila(pixeles, hw.ANCHO_IMAGEN, fila)
+        self.assertEqual(len(puntos), 12)
+        self.assertNotEqual(esperado, 255)
+        self.assertEqual(int(recibida['imagen'][fila, 0]), esperado)
+        self.assertEqual(int(recibida['imagen'][fila, 1]), esperado)
+
+    def test_gabor_capture_filters_the_bright_row_and_keeps_the_raw_photo(self):
+        from Usuarios.hardware import prueba_gabor
+        from Usuarios.hardware.verificar_as608 import ALTO_IMAGEN, ANCHO_IMAGEN
+
+        pixeles, fila = self._foto_con_franja(ANCHO_IMAGEN, ALTO_IMAGEN)
+        sensor = Mock()
+        sensor.comando.return_value = Mock(datos=bytes([0x00]))
+        sensor.bajar_imagen.return_value = (0x00, pixeles)
+
+        with (
+            patch('builtins.input', return_value=''),
+            patch.object(prueba_gabor.time, 'sleep'),
+        ):
+            imagen, crudo = prueba_gabor.tomar_foto(sensor)
+
+        esperado = self._brillo_de_fila(pixeles, ANCHO_IMAGEN, fila)
+        self.assertEqual(crudo, pixeles)
+        self.assertEqual(int(imagen[fila, 0]), esperado)
+        self.assertNotEqual(int(imagen[fila, 0]), 255)
+
+    def test_local_analysis_enhances_the_filtered_rows(self):
+        import random
+
+        from Usuarios.hardware import huella_pc
+
+        ancho, alto, fila = 48, 48, 6
+        random.seed(1)
+        pixeles = bytearray(random.randrange(20, 200) for _ in range(ancho * alto))
+        for x in range(ancho):
+            pixeles[fila * ancho + x] = 255
+        pixeles = bytes(pixeles)
+        vistas = []
+        original = huella_pc._realzar
+
+        def espia(foto, ancho_foto, alto_foto, angulos, bloque):
+            vistas.append(bytes(foto))
+            return original(foto, ancho_foto, alto_foto, angulos, bloque)
+
+        with (
+            patch.object(huella_pc, '_direccion_dominante', return_value=(0.0, 0.0)),
+            patch.object(huella_pc, '_realzar', side_effect=espia),
+        ):
+            huella_pc.analizar(pixeles, ancho, alto)
+
+        esperado = self._brillo_de_fila(pixeles, ancho, fila)
+        self.assertTrue(vistas)
+        self.assertEqual(vistas[0][fila * ancho], esperado)
+        self.assertNotEqual(vistas[0][fila * ancho], 255)
