@@ -19,6 +19,38 @@
                 <span class="badge badge-ok sm:ml-auto">Sin sanciones</span>
             {% endif %}
         </div>
+
+        {% if perfil.email %}
+            <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/60" data-contacto-correo>
+                <h2 class="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">Contactar por correo</h2>
+                <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">Se abre el cliente de correo de esta computadora con el destinatario ya puesto. Puedes cambiar el asunto y el mensaje antes de enviarlo.</p>
+                <div class="mt-4 grid grid-cols-1 gap-3">
+                    <div>
+                        <label class="field-label" for="correo-asunto">Asunto</label>
+                        <input id="correo-asunto" class="field" type="text" value="PCPUMA - SISTEMA DE PRESTAMOS" autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="field-label" for="correo-cuerpo">Contenido del correo</label>
+                        <textarea id="correo-cuerpo" class="field min-h-28" rows="4" placeholder="Escribe el mensaje…"></textarea>
+                    </div>
+                </div>
+                <div class="actions mt-4">
+                    <a
+                        id="btn-enviar-correo"
+                        class="btn btn-secondary"
+                        href="mailto:{{ perfil.email }}?subject={{ 'PCPUMA - SISTEMA DE PRESTAMOS'|urlencode }}"
+                        data-correo="{{ perfil.email|escapejs }}"
+                    >
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                            <path d="m3 7 9 7 9-7"></path>
+                        </svg>
+                        Enviar correo
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+
         <dl class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Número de cuenta</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.numero_cuenta|default:"—" }}</dd></div>
             <div class="rounded-xl bg-slate-50 px-4 py-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Número de trabajador</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ perfil.numero_trabajador|default:"—" }}</dd></div>
@@ -81,4 +113,42 @@
         {% endwith %}
     </article>
 </section>
+{% if perfil.email %}
+<script>
+    (function () {
+        const bloque = document.querySelector('[data-contacto-correo]');
+        if (!bloque) {
+            return;
+        }
+        const asunto = document.getElementById('correo-asunto');
+        const cuerpo = document.getElementById('correo-cuerpo');
+        const boton = document.getElementById('btn-enviar-correo');
+        const correo = boton && boton.getAttribute('data-correo');
+        if (!asunto || !cuerpo || !boton || !correo) {
+            return;
+        }
+
+        function armarMailto() {
+            const partes = ['mailto:' + encodeURIComponent(correo)];
+            const params = [];
+            const textoAsunto = (asunto.value || '').trim();
+            const textoCuerpo = (cuerpo.value || '').trim();
+            if (textoAsunto) {
+                params.push('subject=' + encodeURIComponent(textoAsunto));
+            }
+            if (textoCuerpo) {
+                params.push('body=' + encodeURIComponent(textoCuerpo));
+            }
+            if (params.length) {
+                partes.push('?' + params.join('&'));
+            }
+            boton.setAttribute('href', partes.join(''));
+        }
+
+        asunto.addEventListener('input', armarMailto);
+        cuerpo.addEventListener('input', armarMailto);
+        armarMailto();
+    })();
+</script>
+{% endif %}
 {% endblock %}

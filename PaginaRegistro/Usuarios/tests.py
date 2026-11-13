@@ -400,6 +400,11 @@ class UserRegistrationFormTests(TestCase):
         ):
             with self.subTest(value=value):
                 self.assertContains(response, value)
+        self.assertContains(response, 'Enviar correo')
+        self.assertContains(response, 'mailto:ana@example.com')
+        self.assertContains(response, 'PCPUMA - SISTEMA DE PRESTAMOS')
+        self.assertContains(response, 'id="correo-asunto"')
+        self.assertContains(response, 'id="correo-cuerpo"')
 
 
 class LoginFlowTests(TestCase):
