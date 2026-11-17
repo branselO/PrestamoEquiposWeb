@@ -52,11 +52,7 @@
                 <summary>
                     <span class="font-mono text-sm font-bold text-unam-600">#{{ prestamo.id }}</span>
                     <span class="min-w-0 flex-1 basis-full font-semibold text-slate-900 sm:basis-auto">{{ prestamo.fecha_salida|date:"d/m/Y H:i" }}</span>
-                    {% if prestamo.estado_ticket == "Completado" %}
-                        <span class="badge completado">Completado</span>
-                    {% else %}
-                        <span class="badge pendiente">Pendiente</span>
-                    {% endif %}
+                    <span class="badge {{ prestamo.clase_badge_estado }}">{{ prestamo.etiqueta_estado }}</span>
                     <span class="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-unam-600 transition-all duration-300 group-hover:text-gold-600 sm:ml-0">
                         <span class="when-closed">Ver más</span>
                         <span class="when-open">Ver menos</span>

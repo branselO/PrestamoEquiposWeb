@@ -398,6 +398,38 @@ class RegistrarPrestamoTests(TestCase):
         self.assertContains(response, reverse('registrar_prestamo'))
         self.assertNotContains(response, 'name="dispositivos"')
 
+    def test_overdue_pending_loans_show_as_atrasado(self):
+        atrasado = Prestamo.objects.create(
+            usuario_solicita=self.solicitante,
+            staff_autoriza=self.staff,
+            fecha_devolucion_esperada=timezone.now() - timedelta(days=1),
+        )
+        atrasado.detalles.create(dispositivo=self.dispositivo)
+        vigente = Prestamo.objects.create(
+            usuario_solicita=self.solicitante,
+            staff_autoriza=self.staff,
+            fecha_devolucion_esperada=timezone.now() + timedelta(days=2),
+        )
+        otro = Dispositivo.objects.create(
+            codigo_inventario='PC-010',
+            nombre='Laptop vigente',
+            categoria=self.categoria,
+            especificaciones='x',
+        )
+        vigente.detalles.create(dispositivo=otro)
+
+        self.assertTrue(atrasado.esta_atrasado)
+        self.assertEqual(atrasado.etiqueta_estado, 'Atrasado')
+        self.assertEqual(atrasado.clase_badge_estado, 'atrasado')
+        self.assertFalse(vigente.esta_atrasado)
+        self.assertEqual(vigente.etiqueta_estado, 'Pendiente')
+
+        response = self.client.get(reverse('prestamos'))
+        self.assertContains(response, 'badge atrasado')
+        self.assertContains(response, 'Atrasado')
+        self.assertContains(response, 'badge pendiente')
+        self.assertContains(response, 'Pendiente')
+
     def test_follow_up_filter_shows_only_pending_loan_of_that_device(self):
         otro = Dispositivo.objects.create(
             codigo_inventario='PC-009', nombre='Otra', categoria=self.categoria,
