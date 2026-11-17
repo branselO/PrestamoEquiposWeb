@@ -8,8 +8,11 @@ from django.views.generic import CreateView, TemplateView
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.views import LoginView
 from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
+from .correos import ASUNTO_PERFIL_DEFAULT, enviar_correo_perfil
 from .forms import EmailLoginForm, StaffSignUpForm, NormalUserCreationForm
 from .models import CustomUser, EntidadAcademica, Programa
 from .hardware import (
@@ -432,4 +435,50 @@ class adminUsuariosView(UserPassesTestMixin, TemplateView):
 def perfil_usuario(request, usuario_id):
     # Buscamos al usuario en la BD
     usuario = get_object_or_404(CustomUser, id=usuario_id)
-    return render(request, 'Usuarios/ver_perfil.html', {'perfil': usuario})
+    return render(
+        request,
+        'Usuarios/ver_perfil.html',
+        {
+            'perfil': usuario,
+            'asunto_correo_default': ASUNTO_PERFIL_DEFAULT,
+        },
+    )
+
+
+@login_required
+@require_POST
+def enviar_correo_perfil_usuario(request, usuario_id):
+    if not request.user.is_staff:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Solo el personal puede enviar este correo.'},
+            status=403,
+        )
+
+    usuario = get_object_or_404(CustomUser, id=usuario_id)
+    if not usuario.email:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Este perfil no tiene correo.'},
+            status=400,
+        )
+
+    asunto = (request.POST.get('asunto') or '').strip() or ASUNTO_PERFIL_DEFAULT
+    cuerpo = (request.POST.get('cuerpo') or '').strip()
+    if not cuerpo:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Escribe el contenido del correo.'},
+            status=400,
+        )
+
+    if not enviar_correo_perfil(usuario.email, asunto, cuerpo):
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'No se pudo enviar el correo. Revisa la configuración SMTP del servidor.',
+            },
+            status=502,
+        )
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Correo enviado a {usuario.email}.',
+    })

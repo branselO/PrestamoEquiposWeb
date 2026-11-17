@@ -21,34 +21,36 @@
         </div>
 
         {% if perfil.email %}
-            <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/60" data-contacto-correo>
+            <form
+                class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/60"
+                data-contacto-correo
+                method="post"
+                action="{% url 'enviar_correo_perfil' perfil.id %}"
+            >
+                {% csrf_token %}
                 <h2 class="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">Contactar por correo</h2>
-                <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">Se abre el cliente de correo de esta computadora con el destinatario ya puesto. Puedes cambiar el asunto y el mensaje antes de enviarlo.</p>
+                <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">El servidor envía el mensaje a {{ perfil.email }} con Django (<code class="text-[0.7rem]">send_mail</code>). Puedes cambiar el asunto y el contenido antes de enviarlo.</p>
                 <div class="mt-4 grid grid-cols-1 gap-3">
                     <div>
                         <label class="field-label" for="correo-asunto">Asunto</label>
-                        <input id="correo-asunto" class="field" type="text" value="PCPUMA - SISTEMA DE PRESTAMOS" autocomplete="off">
+                        <input id="correo-asunto" class="field" type="text" name="asunto" value="{{ asunto_correo_default }}" autocomplete="off" required>
                     </div>
                     <div>
                         <label class="field-label" for="correo-cuerpo">Contenido del correo</label>
-                        <textarea id="correo-cuerpo" class="field min-h-28" rows="4" placeholder="Escribe el mensaje…"></textarea>
+                        <textarea id="correo-cuerpo" class="field min-h-28" name="cuerpo" rows="4" placeholder="Escribe el mensaje…" required></textarea>
                     </div>
                 </div>
                 <div class="actions mt-4">
-                    <a
-                        id="btn-enviar-correo"
-                        class="btn btn-secondary"
-                        href="mailto:{{ perfil.email }}?subject={{ 'PCPUMA - SISTEMA DE PRESTAMOS'|urlencode }}"
-                        data-correo="{{ perfil.email|escapejs }}"
-                    >
+                    <button id="btn-enviar-correo" class="btn btn-secondary" type="submit">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <rect x="3" y="5" width="18" height="14" rx="2"></rect>
                             <path d="m3 7 9 7 9-7"></path>
                         </svg>
                         Enviar correo
-                    </a>
+                    </button>
                 </div>
-            </div>
+                <div id="correo-estado" class="status-box info mt-4 hidden" role="status"></div>
+            </form>
         {% endif %}
 
         <dl class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -116,38 +118,60 @@
 {% if perfil.email %}
 <script>
     (function () {
-        const bloque = document.querySelector('[data-contacto-correo]');
-        if (!bloque) {
+        const formulario = document.querySelector('[data-contacto-correo]');
+        if (!formulario) {
             return;
         }
-        const asunto = document.getElementById('correo-asunto');
-        const cuerpo = document.getElementById('correo-cuerpo');
         const boton = document.getElementById('btn-enviar-correo');
-        const correo = boton && boton.getAttribute('data-correo');
-        if (!asunto || !cuerpo || !boton || !correo) {
-            return;
-        }
+        const estado = document.getElementById('correo-estado');
+        const textoBoton = boton ? boton.innerHTML : '';
 
-        function armarMailto() {
-            const partes = ['mailto:' + encodeURIComponent(correo)];
-            const params = [];
-            const textoAsunto = (asunto.value || '').trim();
-            const textoCuerpo = (cuerpo.value || '').trim();
-            if (textoAsunto) {
-                params.push('subject=' + encodeURIComponent(textoAsunto));
+        formulario.addEventListener('submit', function (event) {
+            event.preventDefault();
+            if (!boton || !estado) {
+                return;
             }
-            if (textoCuerpo) {
-                params.push('body=' + encodeURIComponent(textoCuerpo));
-            }
-            if (params.length) {
-                partes.push('?' + params.join('&'));
-            }
-            boton.setAttribute('href', partes.join(''));
-        }
+            boton.disabled = true;
+            estado.classList.remove('hidden', 'error', 'success');
+            estado.className = 'status-box info mt-4';
+            estado.textContent = 'Enviando correo…';
 
-        asunto.addEventListener('input', armarMailto);
-        cuerpo.addEventListener('input', armarMailto);
-        armarMailto();
+            fetch(formulario.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'fetch',
+                },
+                body: new FormData(formulario),
+            })
+            .then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data || {} };
+                }).catch(function () {
+                    return { ok: false, data: { message: 'No se pudo leer la respuesta del servidor.' } };
+                });
+            })
+            .then(function (resultado) {
+                const data = resultado.data;
+                estado.className = 'status-box mt-4 ' + (resultado.ok ? 'success' : 'error');
+                estado.textContent = data.message || (resultado.ok
+                    ? 'Correo enviado.'
+                    : 'No se pudo enviar el correo.');
+                if (resultado.ok) {
+                    const cuerpo = document.getElementById('correo-cuerpo');
+                    if (cuerpo) {
+                        cuerpo.value = '';
+                    }
+                }
+            })
+            .catch(function () {
+                estado.className = 'status-box error mt-4';
+                estado.textContent = 'No hubo respuesta del servidor.';
+            })
+            .finally(function () {
+                boton.disabled = false;
+                boton.innerHTML = textoBoton;
+            });
+        });
     })();
 </script>
 {% endif %}

@@ -401,10 +401,73 @@ class UserRegistrationFormTests(TestCase):
             with self.subTest(value=value):
                 self.assertContains(response, value)
         self.assertContains(response, 'Enviar correo')
-        self.assertContains(response, 'mailto:ana@example.com')
         self.assertContains(response, 'PCPUMA - SISTEMA DE PRESTAMOS')
         self.assertContains(response, 'id="correo-asunto"')
         self.assertContains(response, 'id="correo-cuerpo"')
+        self.assertContains(response, reverse('enviar_correo_perfil', args=[usuario.pk]))
+        self.assertNotContains(response, 'mailto:')
+
+    def test_profile_email_is_sent_with_django_send_mail(self):
+        destinatario = get_user_model().objects.create(
+            email='ana@example.com',
+            nombre='Ana',
+            apellidos='López',
+        )
+        staff = get_user_model()(
+            email='staff@example.com',
+            nombre='Staff',
+            apellidos='PCPuma',
+            is_staff=True,
+        )
+        staff.set_password('secure-test-password')
+        staff.save()
+        self.client.force_login(staff)
+
+        with patch('Usuarios.correos.send_mail', return_value=1) as enviar:
+            response = self.client.post(
+                reverse('enviar_correo_perfil', args=[destinatario.pk]),
+                {
+                    'asunto': 'PCPUMA - SISTEMA DE PRESTAMOS',
+                    'cuerpo': 'Hola Ana, te escribimos desde el sistema.',
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'success')
+        enviar.assert_called_once()
+        args, kwargs = enviar.call_args
+        self.assertEqual(args[0], 'PCPUMA - SISTEMA DE PRESTAMOS')
+        self.assertEqual(args[1], 'Hola Ana, te escribimos desde el sistema.')
+        self.assertEqual(args[3], ['ana@example.com'])
+
+    def test_profile_email_requires_staff_and_body(self):
+        destinatario = get_user_model().objects.create(
+            email='ana@example.com',
+            nombre='Ana',
+            apellidos='López',
+        )
+        staff = get_user_model()(
+            email='staff@example.com',
+            nombre='Staff',
+            apellidos='PCPuma',
+            is_staff=True,
+        )
+        staff.set_password('secure-test-password')
+        staff.save()
+
+        anonimo = self.client.post(
+            reverse('enviar_correo_perfil', args=[destinatario.pk]),
+            {'asunto': 'Prueba', 'cuerpo': 'Hola'},
+        )
+        self.assertEqual(anonimo.status_code, 302)
+
+        self.client.force_login(staff)
+        vacio = self.client.post(
+            reverse('enviar_correo_perfil', args=[destinatario.pk]),
+            {'asunto': 'Prueba', 'cuerpo': '   '},
+        )
+        self.assertEqual(vacio.status_code, 400)
+        self.assertEqual(vacio.json()['status'], 'error')
 
 
 class LoginFlowTests(TestCase):
