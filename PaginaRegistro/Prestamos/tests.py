@@ -429,6 +429,10 @@ class RegistrarPrestamoTests(TestCase):
         self.assertContains(response, 'Atrasado')
         self.assertContains(response, 'badge pendiente')
         self.assertContains(response, 'Pendiente')
+        self.assertContains(response, '<option value="atrasado"')
+
+        response = self.client.get(reverse('prestamos'), {'estado': 'atrasado'})
+        self.assertEqual(list(response.context['prestamos']), [atrasado])
 
     def test_follow_up_filter_shows_only_pending_loan_of_that_device(self):
         otro = Dispositivo.objects.create(
