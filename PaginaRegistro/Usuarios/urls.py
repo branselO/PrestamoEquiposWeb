@@ -28,5 +28,9 @@ urlpatterns = [
     path('inicio/admin_usuarios/', views.adminUsuariosView.as_view(), name='admin_usuarios'),
 
     path('perfil/<int:usuario_id>/', views.perfil_usuario, name='perfil_usuario'),
-    
+    path(
+        'perfil/<int:usuario_id>/enviar_correo/',
+        views.enviar_correo_perfil_usuario,
+        name='enviar_correo_perfil',
+    ),
 ]

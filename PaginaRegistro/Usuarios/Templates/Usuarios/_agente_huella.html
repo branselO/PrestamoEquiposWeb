@@ -1,6 +1,8 @@
 <script>
     window.HUELLA_AGENTE = "{{ huella_agente_url|escapejs }}";
 
+    let lecturaActual = null;
+
     function pedirAlAgente(ruta, opciones) {
         return fetch(window.HUELLA_AGENTE + ruta, opciones)
             .then(function (response) {
@@ -10,12 +12,19 @@
                     if (!response.ok || data.ok === false) {
                         const error = new Error(data.mensaje || 'No se pudo leer la huella.');
                         error.delAgente = true;
+                        error.cancelado = !!data.cancelado || response.status === 499;
                         throw error;
                     }
                     return data;
                 });
             })
             .catch(function (error) {
+                if (error && error.name === 'AbortError') {
+                    const abortado = new Error('Lectura cancelada.');
+                    abortado.delAgente = true;
+                    abortado.cancelado = true;
+                    throw abortado;
+                }
                 if (error && error.delAgente) {
                     throw error;
                 }
@@ -24,6 +33,24 @@
                 throw caido;
             });
     }
+
+    function abortarFetchLocal() {
+        if (lecturaActual) {
+            lecturaActual.abort();
+            lecturaActual = null;
+        }
+    }
+
+    window.cancelarLecturaKiosco = function () {
+        abortarFetchLocal();
+        // keepalive: la página puede estar cerrándose (Regresar / recarga).
+        try {
+            fetch(window.HUELLA_AGENTE + '/cancelar', {
+                method: 'POST',
+                keepalive: true
+            }).catch(function () {});
+        } catch (_error) {}
+    };
 
     window.vigilarLector = function (mostrar) {
         let activo = true;
@@ -44,14 +71,38 @@
     };
 
     window.capturarEnKiosco = function () {
-        return pedirAlAgente('/capturar', { method: 'POST' });
+        // Solo aborta el fetch local. El POST /capturar nuevo pide al agente
+        // que suelte el candado de la lectura anterior.
+        abortarFetchLocal();
+        const controller = new AbortController();
+        lecturaActual = controller;
+        return pedirAlAgente('/capturar', {
+            method: 'POST',
+            signal: controller.signal
+        }).finally(function () {
+            if (lecturaActual === controller) {
+                lecturaActual = null;
+            }
+        });
     };
 
     window.tomarEnKiosco = function (numero, primera) {
+        abortarFetchLocal();
+        const controller = new AbortController();
+        lecturaActual = controller;
         return pedirAlAgente('/toma', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ numero: numero, primera: primera || '' })
+            body: JSON.stringify({ numero: numero, primera: primera || '' }),
+            signal: controller.signal
+        }).finally(function () {
+            if (lecturaActual === controller) {
+                lecturaActual = null;
+            }
         });
     };
+
+    window.addEventListener('pagehide', function () {
+        window.cancelarLecturaKiosco();
+    });
 </script>

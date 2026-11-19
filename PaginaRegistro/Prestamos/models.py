@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from Inventario.models import Dispositivo 
 
 # Create your models here.
@@ -52,6 +53,31 @@ class Prestamo(models.Model):
             return f"Parcial ({equipos_devueltos}/{total_equipos} devueltos)"
         else:
             return "Completado"
+
+    @property
+    def esta_atrasado(self):
+        """Pendiente o parcial cuya devolución esperada ya pasó."""
+        if self.estado_ticket in {"Completado", "Vacío"}:
+            return False
+        return self.fecha_devolucion_esperada < timezone.now()
+
+    @property
+    def etiqueta_estado(self):
+        if self.estado_ticket == "Completado":
+            return "Completado"
+        if self.esta_atrasado:
+            return "Atrasado"
+        if self.estado_ticket == "Vacío":
+            return "Vacío"
+        return "Pendiente"
+
+    @property
+    def clase_badge_estado(self):
+        if self.etiqueta_estado == "Completado":
+            return "completado"
+        if self.etiqueta_estado == "Atrasado":
+            return "atrasado"
+        return "pendiente"
         
     @property
     def comentarios_devolucion(self):

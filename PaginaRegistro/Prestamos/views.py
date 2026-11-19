@@ -60,6 +60,8 @@ class adminPrestamoView(StaffRequiredMixin, TemplateView):
             prestamos = [p for p in prestamos if p.estado_ticket == 'Completado']
         elif estado == 'pendiente':
             prestamos = [p for p in prestamos if p.estado_ticket != 'Completado']
+        elif estado == 'atrasado':
+            prestamos = [p for p in prestamos if p.etiqueta_estado == 'Atrasado']
 
         context['prestamos'] = prestamos
         context['dispositivo_filtrado'] = dispositivo_filtrado

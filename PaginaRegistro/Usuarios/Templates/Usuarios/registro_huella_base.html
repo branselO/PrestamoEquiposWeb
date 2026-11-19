@@ -172,28 +172,39 @@
                 detener();
                 capturando = false;
                 document.getElementById('btn-reiniciar').disabled = false;
-                statusBox.className = 'status-box error';
-                statusBox.innerText = (error && error.delAgente && error.message)
-                    || 'No hubo respuesta. Revisa que el agente del lector esté encendido.';
+                if (error && error.cancelado) {
+                    statusBox.className = 'status-box info';
+                    statusBox.innerText = 'Lectura cancelada. Puedes capturar otra vez.';
+                } else {
+                    statusBox.className = 'status-box error';
+                    statusBox.innerText = (error && error.delAgente && error.message)
+                        || 'No hubo respuesta. Revisa que el agente del lector esté encendido.';
+                }
                 btn.disabled = false;
                 btnText.innerText = textoBoton();
             });
         }
 
-        function reiniciarRegistro() {
-            if (capturando) {
-                return;
-            }
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            const statusBox = document.getElementById('status-message');
-            fetch("{% url 'registrar_huella' %}", {
+        function limpiarTomasEnServidor(opciones) {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            return fetch("{% url 'registrar_huella' %}", {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': csrfToken,
+                    'X-CSRFToken': csrfToken ? csrfToken.value : '',
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ accion: 'reiniciar' })
-            })
+                body: JSON.stringify({ accion: 'reiniciar' }),
+                keepalive: !!(opciones && opciones.keepalive)
+            });
+        }
+
+        function reiniciarRegistro() {
+            if (capturando) {
+                window.cancelarLecturaKiosco();
+                capturando = false;
+            }
+            const statusBox = document.getElementById('status-message');
+            limpiarTomasEnServidor()
             .then(response => response.json())
             .then((data) => {
                 tomasListas = 0;
@@ -214,6 +225,14 @@
                 statusBox.innerText = 'No se pudo reiniciar el registro.';
             });
         }
+
+        // Regresar / cerrar / recargar: no dejes tomas a medias para el siguiente intento.
+        window.addEventListener('pagehide', function () {
+            window.cancelarLecturaKiosco();
+            try {
+                limpiarTomasEnServidor({ keepalive: true }).catch(function () {});
+            } catch (_error) {}
+        });
     </script>
 </body>
 </html>

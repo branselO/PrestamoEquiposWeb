@@ -8,8 +8,11 @@ from django.views.generic import CreateView, TemplateView
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.views import LoginView
 from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
+from .correos import ASUNTO_PERFIL_DEFAULT, enviar_correo_perfil
 from .forms import EmailLoginForm, StaffSignUpForm, NormalUserCreationForm
 from .models import CustomUser, EntidadAcademica, Programa
 from .hardware import (
@@ -86,6 +89,7 @@ class SignUpView(CreateView):
             form,
             is_staff=True,
         )
+        _limpiar_tomas(self.request)
         return redirect('registrar_huella')
 
 # VIEW PARA EL REGISTRO DE USUARIOS NORMALES
@@ -101,6 +105,7 @@ class RegisterNormalUserView(UserPassesTestMixin, CreateView):
             form,
             is_staff=False,
         )
+        _limpiar_tomas(self.request)
         return redirect('registrar_huella')  
 
 
@@ -142,6 +147,12 @@ def _cuerpo_json(request):
 def _tomas_guardadas(request):
     tomas = request.session.get(SESION_TOMAS) or []
     return list(tomas) if isinstance(tomas, list) else []
+
+
+def _limpiar_tomas(request):
+    """Borra las tomas a medias. La página de registro siempre empieza en la toma 1."""
+    request.session[SESION_TOMAS] = []
+    request.session.modified = True
 
 
 def _png_del_kiosco(texto):
@@ -190,14 +201,10 @@ def api_estado_sensor(request):
 def api_registrar_huella(request):
     if request.method == 'POST':
         temp_data = request.session.get('temp_user_data')
-
-        if not temp_data:
-            return JsonResponse({'status': 'error', 'message': 'Sesión caducada.'}, status=400)
-
         cuerpo = _cuerpo_json(request)
         if cuerpo.get('accion') == 'reiniciar':
-            request.session[SESION_TOMAS] = []
-            request.session.modified = True
+            # Se puede limpiar aunque ya no haya temp_user_data (al salir de la página).
+            _limpiar_tomas(request)
             return JsonResponse({
                 'status': 'reiniciado',
                 'message': 'Empezamos de nuevo. Captura la toma 1.',
@@ -205,6 +212,9 @@ def api_registrar_huella(request):
                 'total': TOMA_TOTAL,
                 'completo': False,
             })
+
+        if not temp_data:
+            return JsonResponse({'status': 'error', 'message': 'Sesión caducada.'}, status=400)
 
         if cuerpo.get('accion') != 'guardar':
             return JsonResponse(
@@ -225,8 +235,7 @@ def api_registrar_huella(request):
             try:
                 deserializar_template(base64.b64decode(tomas[0]))
             except (ValueError, OSError, json.JSONDecodeError, zlib.error):
-                request.session[SESION_TOMAS] = []
-                request.session.modified = True
+                _limpiar_tomas(request)
                 return JsonResponse(
                     {
                         'status': 'error',
@@ -283,8 +292,7 @@ def api_registrar_huella(request):
             [deserializar_template(base64.b64decode(item)) for item in tomas]
         )
         if plantilla is None:
-            request.session[SESION_TOMAS] = []
-            request.session.modified = True
+            _limpiar_tomas(request)
             return JsonResponse(
                 {
                     'status': 'error',
@@ -301,8 +309,7 @@ def api_registrar_huella(request):
         template_bytes = serializar_template(plantilla)
         _guardar_usuario(temp_data, template_bytes)
         del request.session['temp_user_data']
-        request.session[SESION_TOMAS] = []
-        request.session.modified = True
+        _limpiar_tomas(request)
         return JsonResponse({
             'status': 'success',
             'message': 'Huella y usuario guardados. Ya puedes entrar.',
@@ -314,6 +321,8 @@ def api_registrar_huella(request):
 
     # Manejo de la vista GET
     if request.method == 'GET':
+        # La UI siempre arranca en la toma 1; no reutilizar tomas de un intento anterior.
+        _limpiar_tomas(request)
         temp_data = request.session.get('temp_user_data', {})
         
         # Verificamos si existe la bandera is_staff en la sesión
@@ -426,4 +435,50 @@ class adminUsuariosView(UserPassesTestMixin, TemplateView):
 def perfil_usuario(request, usuario_id):
     # Buscamos al usuario en la BD
     usuario = get_object_or_404(CustomUser, id=usuario_id)
-    return render(request, 'Usuarios/ver_perfil.html', {'perfil': usuario})
+    return render(
+        request,
+        'Usuarios/ver_perfil.html',
+        {
+            'perfil': usuario,
+            'asunto_correo_default': ASUNTO_PERFIL_DEFAULT,
+        },
+    )
+
+
+@login_required
+@require_POST
+def enviar_correo_perfil_usuario(request, usuario_id):
+    if not request.user.is_staff:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Solo el personal puede enviar este correo.'},
+            status=403,
+        )
+
+    usuario = get_object_or_404(CustomUser, id=usuario_id)
+    if not usuario.email:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Este perfil no tiene correo.'},
+            status=400,
+        )
+
+    asunto = (request.POST.get('asunto') or '').strip() or ASUNTO_PERFIL_DEFAULT
+    cuerpo = (request.POST.get('cuerpo') or '').strip()
+    if not cuerpo:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Escribe el contenido del correo.'},
+            status=400,
+        )
+
+    if not enviar_correo_perfil(usuario.email, asunto, cuerpo):
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'No se pudo enviar el correo. Revisa la configuración SMTP del servidor.',
+            },
+            status=502,
+        )
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Correo enviado a {usuario.email}.',
+    })
