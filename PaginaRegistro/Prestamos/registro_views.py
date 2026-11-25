@@ -1,9 +1,4 @@
-"""Flujo secuencial de 3 pasos para registrar un préstamo.
-
-Paso 1: autenticar al solicitante (contraseña o huella).
-Paso 2: seleccionar dispositivos.
-Paso 3: fecha de devolución y confirmación (creación transaccional).
-"""
+#Views para el flujo de registro de préstamos.
 from datetime import datetime, timedelta
 
 from django.contrib import messages
@@ -81,13 +76,11 @@ def autenticar_usuario(correo, metodo, contrasena, minucias_b64=''):
 
 
 def devolucion_dentro_de_dos_horas():
-    """Hora local, sin segundos, dos horas después de este momento."""
     ahora = timezone.localtime().replace(second=0, microsecond=0)
     return ahora + timedelta(hours=2)
 
 
 def leer_fecha_devolucion(texto):
-    """Lee el datetime del formulario. Si viene vacío, usa dentro de dos horas."""
     texto = (texto or '').strip()
     if not texto:
         return devolucion_dentro_de_dos_horas()
@@ -103,7 +96,7 @@ def leer_fecha_devolucion(texto):
 
 
 def _solicitante_valido(usuario_id):
-    """Devuelve el usuario si sigue activo y sin sanciones, o (None, motivo)."""
+    #Devuelve el usuario si sigue activo y sin sanciones.
     usuario = get_user_model().objects.filter(pk=usuario_id, is_active=True).first()
     if usuario is None:
         return None, 'El solicitante ya no está disponible. Inicia el registro de nuevo.'

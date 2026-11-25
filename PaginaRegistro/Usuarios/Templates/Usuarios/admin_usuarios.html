@@ -44,6 +44,7 @@
                                 <p class="truncate text-sm text-slate-600">{{ usuario.email }}</p>
                             </div>
                             <a class="btn btn-secondary sm:ml-auto" href="{% url 'perfil_usuario' usuario.id %}">Ver perfil</a>
+                            <a class="btn btn-secondary sm:ml-auto" href="{% url 'editar_usuario' usuario.id %}">Editar</a>
                         </li>
                     {% endfor %}
                 </ul>

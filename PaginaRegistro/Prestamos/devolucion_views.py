@@ -1,8 +1,5 @@
-"""Flujo de devoluciones.
+#Views para el flujo de devoluciones.
 
-Paso 1: login del usuario (contraseña o huella).
-Paso 2: panel de préstamos pendientes con acciones de devolución por préstamo.
-"""
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.db import transaction

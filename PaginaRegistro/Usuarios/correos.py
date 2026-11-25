@@ -1,5 +1,3 @@
-"""Correos enviados desde el panel de usuarios."""
-
 import logging
 
 from django.conf import settings

@@ -3,8 +3,8 @@ import json
 import zlib
 
 from django.shortcuts import render, redirect
-from django.urls import reverse
-from django.views.generic import CreateView, TemplateView
+from django.urls import reverse, reverse_lazy
+from django.views.generic import CreateView, TemplateView, UpdateView
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.views import LoginView
 from django.contrib.auth import login
@@ -193,7 +193,7 @@ def _guardar_usuario(temp_data, template_bytes):
 
 # API PARA EL ESTADO DEL SENSOR Y REGISTRO DE HUELLAS
 def api_estado_sensor(request):
-    """Devuelve el texto actual del lector de huellas."""
+    #Devuelve el texto actual del lector de huellas.
     return JsonResponse({'mensaje': estado_sensor()})
 
 
@@ -203,7 +203,6 @@ def api_registrar_huella(request):
         temp_data = request.session.get('temp_user_data')
         cuerpo = _cuerpo_json(request)
         if cuerpo.get('accion') == 'reiniciar':
-            # Se puede limpiar aunque ya no haya temp_user_data (al salir de la página).
             _limpiar_tomas(request)
             return JsonResponse({
                 'status': 'reiniciado',
@@ -321,7 +320,7 @@ def api_registrar_huella(request):
 
     # Manejo de la vista GET
     if request.method == 'GET':
-        # La UI siempre arranca en la toma 1; no reutilizar tomas de un intento anterior.
+        # La UI siempre arranca en la toma 1.
         _limpiar_tomas(request)
         temp_data = request.session.get('temp_user_data', {})
         
@@ -405,7 +404,7 @@ def api_login_huella(request):
                 
     return render(request, 'Usuarios/login_huella.html', {'usuario': user})
 
-# 4.  VISTAS DEL PANEL DE CONTROL
+# VISTAS DEL PANEL DE CONTROL
 
 class InicioView(UserPassesTestMixin, TemplateView):
     template_name = 'Usuarios/inicio.html'
@@ -420,7 +419,7 @@ class adminUsuariosView(UserPassesTestMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         nombre = self.request.GET.get('nombre', '').strip() 
         email = self.request.GET.get('email', '').strip() 
-
+        
         if nombre or email:
             usuario = CustomUser.objects.filter(nombre__icontains=nombre, email__icontains=email)
         else:
@@ -482,3 +481,23 @@ def enviar_correo_perfil_usuario(request, usuario_id):
         'status': 'success',
         'message': f'Correo enviado a {usuario.email}.',
     })
+
+class UsuarioUpdateView(UserPassesTestMixin, UpdateView):
+    model = CustomUser
+    form_class = NormalUserCreationForm
+    template_name = 'Usuarios/usuario_form.html'
+    success_url = reverse_lazy('admin_usuarios')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Aquí puedes personalizar el formulario si es necesario
+
+        return form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Aquí puedes agregar contexto adicional si es necesario
+        return context
+
+    def test_func(self):
+        return self.request.user.is_authenticated and self.request.user.is_staff

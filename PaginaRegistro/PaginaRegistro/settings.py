@@ -93,7 +93,7 @@ DATABASES = {
         'NAME': 'pcpuma_db',               # Mismo nombre que en docker-compose
         'USER': 'admin_pcpuma',            # Mismo usuario que en docker-compose
         'PASSWORD': 'password_seguro_123', # Misma contraseña que en docker-compose
-        'HOST': 'localhost',               # Porque el puerto 5432 está expuesto en tu Mac
+        'HOST': 'localhost',               
         'PORT': '5433',
     }
 }
@@ -158,10 +158,9 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'prestamos@localhost')
 # El proceso de Django no abre el USB. HUELLA_AGENTE_PUERTO cambia el puerto del agente.
 HUELLA_AGENTE_URL = os.environ.get('HUELLA_AGENTE_URL', 'http://127.0.0.1:8766')
 
-# A dónde ir después de iniciar sesión con éxito
 LOGIN_REDIRECT_URL = 'inicio'
 
-# A dónde enviar a los intrusos que intenten entrar sin sesión
+# URL a la que se redirige a los usuarios que intentan acceder sin estar autenticados
 LOGIN_URL = 'login'
 
 MEDIA_URL = '/media/'
