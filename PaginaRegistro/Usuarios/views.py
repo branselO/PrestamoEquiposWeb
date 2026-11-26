@@ -481,23 +481,3 @@ def enviar_correo_perfil_usuario(request, usuario_id):
         'status': 'success',
         'message': f'Correo enviado a {usuario.email}.',
     })
-
-class UsuarioUpdateView(UserPassesTestMixin, UpdateView):
-    model = CustomUser
-    form_class = NormalUserCreationForm
-    template_name = 'Usuarios/usuario_form.html'
-    success_url = reverse_lazy('admin_usuarios')
-
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        # Aquí puedes personalizar el formulario si es necesario
-
-        return form
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Aquí puedes agregar contexto adicional si es necesario
-        return context
-
-    def test_func(self):
-        return self.request.user.is_authenticated and self.request.user.is_staff

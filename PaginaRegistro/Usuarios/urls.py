@@ -25,5 +25,4 @@ urlpatterns = [
 
     path('perfil/<int:usuario_id>/', views.perfil_usuario, name='perfil_usuario'),
     path('perfil/<int:usuario_id>/enviar_correo/', views.enviar_correo_perfil_usuario, name='enviar_correo_perfil'),
-    path('editar_usuario/<int:pk>/', views.UsuarioUpdateView.as_view(), name='editar_usuario'),
 ]
