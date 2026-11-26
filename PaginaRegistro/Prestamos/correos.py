@@ -1,5 +1,3 @@
-"""Confirmaciones por correo de préstamos, sanciones y devoluciones."""
-
 import logging
 
 from django.conf import settings

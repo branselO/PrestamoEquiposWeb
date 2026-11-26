@@ -1,0 +1,7 @@
+# Solo lo que necesita el agente local del lector. Sin Django ni Postgres.
+numpy
+pyserial
+opencv-python-headless
+fingerprint-enhancer
+fingerprint-feature-extractor
+Pillow

@@ -27,9 +27,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, verbose_name="Correo Electrónico")
     nombre = models.CharField(max_length=100)
     apellidos = models.CharField(max_length=100)
-    numero_cuenta = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de Cuenta (Alumnos)")
     
-    # --- LOS NUEVOS CAMPOS ADMINISTRATIVOS ---
+    numero_cuenta = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de Cuenta (Alumnos)")
     numero_trabajador = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de Trabajador")
     rfc = models.CharField(max_length=13, blank=True, null=True, verbose_name="RFC")
     curp = models.CharField(max_length=18, blank=True, null=True, verbose_name="CURP")
@@ -37,11 +36,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     direccion = models.TextField(blank=True, null=True, verbose_name="Dirección Completa")
     telefono_celular = models.CharField(max_length=15, blank=True, null=True, verbose_name="Teléfono Celular")
     
-    # auto_now_add=True hace que el sistema llene este campo automáticamente cuando se crea el registro
+    # el sistema llene este campo automáticamente cuando se crea el registro
     fecha_registro = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Registro en el Sistema")
     # ----------------------------------------
 
-    # Llaves foráneas (De la explicación anterior)
+    # Llaves foráneas
     entidad_academica = models.ForeignKey(
         'EntidadAcademica', 
         on_delete=models.SET_NULL, 
@@ -57,6 +56,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         blank=True, 
         related_name='alumnos'
     )
+
     #Huella digital del usuario
     huella_template = models.BinaryField(null=True, blank=True)
     
@@ -83,7 +83,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     @property
     def prestamos_pendientes(self):
-        # Busca los préstamos (tickets) que tengan al menos un dispositivo sin devolver
+        # Busca los préstamos que tengan al menos un dispositivo sin devolver
         # El .distinct() evita que el ticket salga duplicado si debe 2 dispositivos del mismo ticket
         return self.prestamos_solicitados.filter(detalles__fecha_devuelto__isnull=True).distinct()
 

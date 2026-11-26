@@ -14,7 +14,7 @@ class EmailLoginForm(forms.Form):
         super().__init__(*args, **kwargs)
 
 
-# 1. Registro de Staff
+
 class AcademicProgramFormMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -40,7 +40,7 @@ class AcademicProgramFormMixin:
             self.fields['entidad_academica'].widget.attrs.pop('disabled', None)
             self.fields['entidad_academica'].empty_label = 'Selecciona una entidad académica'
 
-
+#Registro de Staff
 class StaffSignUpForm(AcademicProgramFormMixin, UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = CustomUser
@@ -67,7 +67,7 @@ class StaffSignUpForm(AcademicProgramFormMixin, UserCreationForm):
             user.save()
         return user
 
-# 2. Registro de Usuario Normal
+#Registro de Usuario Normal
 class NormalUserCreationForm(AcademicProgramFormMixin, UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = CustomUser

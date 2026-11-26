@@ -40,7 +40,7 @@ class adminInventarioView(StaffRequiredMixin, TemplateView):
         })
         return context
 
-
+# Agregar dispositivo
 class DispositivoCreateView(StaffRequiredMixin, CreateView):
     model = Dispositivo
     model.estado = "Disponible"
@@ -51,7 +51,7 @@ class DispositivoCreateView(StaffRequiredMixin, CreateView):
     success_url = reverse_lazy('inventario')
     extra_context = {'titulo': 'Añadir dispositivo'}
 
-
+# Editar dispositivo
 class DispositivoUpdateView(StaffRequiredMixin, UpdateView):
     model = Dispositivo
     fields = ['codigo_inventario', 'nombre', 'categoria', 'especificaciones',
@@ -72,7 +72,7 @@ class DispositivoUpdateView(StaffRequiredMixin, UpdateView):
         context['titulo'] = 'Editar dispositivo'
         return context
 
-
+# Agregar categoría
 class CategoriaCreateView(StaffRequiredMixin, CreateView):
     model = Categoria
     fields = ['nombre', 'descripcion']
